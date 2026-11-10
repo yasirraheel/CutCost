@@ -130,14 +130,14 @@ class CapturedPageController extends Controller
         $identityClass = 'col-6 col-md-4 p-2 tab-navigation'.($identityPage ? ' current' : '');
 
         $html = preg_replace(
-            '/<a href="\/en\/dashboard\.html" class="col-6 col-md-4 p-2 tab-navigation current">/',
-            '<a href="/en/my-account.html" class="'.$accountClass.'">',
+            '/<a href="\/en\/my-account\.html" class="col-6 col-md-4 p-2 tab-navigation">/',
+            '<a href="/en/my-account/identity" class="'.$identityClass.'">',
             $html,
             1,
         ) ?? $html;
         $html = preg_replace(
-            '/<a href="\/en\/my-account\.html" class="col-6 col-md-4 p-2 tab-navigation">/',
-            '<a href="/en/my-account/identity" class="'.$identityClass.'">',
+            '/<a href="\/en\/dashboard\.html" class="col-6 col-md-4 p-2 tab-navigation current">/',
+            '<a href="/en/my-account.html" class="'.$accountClass.'">',
             $html,
             1,
         ) ?? $html;
@@ -164,11 +164,9 @@ class CapturedPageController extends Controller
     {
         $submission = Auth::user()->kycSubmission;
         $html = $this->applyKycStatusNotice($html);
+        // Keep validation errors visible, but do not duplicate the template's
+        // identity notice with a second success flash after submission.
         $message = session('errors')?->first('kyc') ?: session('errors')?->first();
-
-        if (! is_string($message) || $message === '') {
-            $message = is_string(session('status')) ? session('status') : null;
-        }
 
         $status = $submission?->status ?? KycSubmission::STATUS_NOT_SUBMITTED;
         $form = $this->identityForm($submission, $message);

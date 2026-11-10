@@ -56,7 +56,7 @@ class KycController extends Controller
             ],
         );
 
-        return redirect('/en/my-account/identity')->with('status', 'Your identity documents were submitted and are under review.');
+        return redirect('/en/my-account/identity');
     }
 
     public function adminIndex()
