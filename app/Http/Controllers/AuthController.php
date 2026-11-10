@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
@@ -64,6 +65,56 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/en/');
+    }
+
+    public function updateAccount(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'firstname' => ['required', 'string', 'max:255'],
+            'lastname' => ['required', 'string', 'max:255'],
+            'username' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('users', 'username')->ignore($user->id),
+            ],
+            'birthdate' => ['nullable', 'date', 'before_or_equal:today'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+            'phone' => ['required', 'string', 'max:50'],
+            'intl-phone' => ['nullable', 'string', 'max:50'],
+            'address1' => ['nullable', 'string', 'max:255'],
+            'address2' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:255'],
+            'zip' => ['nullable', 'string', 'max:30'],
+            'state' => ['nullable', 'string', 'max:255'],
+            'country' => ['nullable', 'string', 'size:2'],
+        ]);
+
+        $user->forceFill([
+            'name' => trim($validated['firstname'].' '.$validated['lastname']),
+            'first_name' => $validated['firstname'],
+            'last_name' => $validated['lastname'],
+            'username' => $validated['username'] ?? null,
+            'birthdate' => $validated['birthdate'] ?? null,
+            'email' => $validated['email'],
+            'phone' => $validated['phone'],
+            'intl_phone' => $validated['intl-phone'] ?? null,
+            'address1' => $validated['address1'] ?? null,
+            'address2' => $validated['address2'] ?? null,
+            'city' => $validated['city'] ?? null,
+            'zip' => $validated['zip'] ?? null,
+            'state' => $validated['state'] ?? null,
+            'country' => $validated['country'] ?? null,
+        ])->save();
+
+        return back()->with('status', 'Your account information has been saved.');
     }
 
     protected function safeReturnUrl(?string $return): string

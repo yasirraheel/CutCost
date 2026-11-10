@@ -19,6 +19,9 @@ class DatabaseSeeder extends Seeder
             ['email' => 'demo@example.com'],
             [
                 'name' => 'Demo User',
+                'first_name' => 'Demo',
+                'last_name' => 'User',
+                'username' => 'demo-user',
                 'password' => 'Demo1234!',
                 'role' => 'user',
             ],
@@ -28,6 +31,9 @@ class DatabaseSeeder extends Seeder
             ['email' => 'admin@example.com'],
             [
                 'name' => 'Demo Admin',
+                'first_name' => 'Demo',
+                'last_name' => 'Admin',
+                'username' => 'demo-admin',
                 'password' => 'Admin1234!',
                 'role' => 'admin',
             ],

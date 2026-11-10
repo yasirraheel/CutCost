@@ -108,8 +108,88 @@ class CapturedPageController extends Controller
         );
 
         $html = $this->applyAuthenticatedNavigation($html, $page);
+        $html = $this->applyAccountData($html, $page);
 
         return response($html)->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    protected function applyAccountData(string $html, string $page): string
+    {
+        if ($page !== 'en/my-account.html' || ! Auth::check()) {
+            return $html;
+        }
+
+        $user = Auth::user();
+        $nameParts = preg_split('/\s+/', trim((string) $user->name), 2) ?: [];
+        $values = [
+            'firstname' => $user->first_name ?: ($nameParts[0] ?? ''),
+            'lastname' => $user->last_name ?: ($nameParts[1] ?? ''),
+            'username' => $user->username,
+            'birthdate' => $user->birthdate?->format('Y-m-d') ?? $user->birthdate,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'intl-phone' => $user->intl_phone,
+            'address1' => $user->address1,
+            'address2' => $user->address2,
+            'city' => $user->city,
+            'zip' => $user->zip,
+            'state' => $user->state,
+        ];
+
+        $html = preg_replace(
+            '/(<form\b[^>]*\bclass="stripe-create"[^>]*)(>)/i',
+            '$1 action="/en/my-account.html"$2',
+            $html,
+            1,
+        ) ?? $html;
+
+        foreach ($values as $field => $value) {
+            $escapedField = preg_quote($field, '/');
+            $escapedValue = e((string) ($value ?? ''));
+            $html = preg_replace(
+                '/(<input\b(?=[^>]*\bname="'.$escapedField.'")[^>]*\bvalue=")[^"]*(")/i',
+                '${1}'.$escapedValue.'${2}',
+                $html,
+                1,
+            ) ?? $html;
+        }
+
+        $country = strtoupper((string) ($user->country ?? ''));
+        $html = preg_replace_callback(
+            '/(<select\b[^>]*\bname="country"[^>]*>.*?<\/select>)/is',
+            function (array $matches) use ($country): string {
+                $select = preg_replace('/\sselected\b/i', '', $matches[1]) ?? $matches[1];
+                $value = preg_quote($country !== '' ? $country : '#offline', '/');
+
+                return preg_replace(
+                    '/(<option\b[^>]*\bvalue="'.$value.'"[^>]*)>/i',
+                    '$1 selected>',
+                    $select,
+                    1,
+                ) ?? $select;
+            },
+            $html,
+            1,
+        ) ?? $html;
+
+        $message = '';
+        $errors = session('errors');
+        if ($errors && $errors->any()) {
+            $message = '<div class="alert alert-danger mb-3" role="alert">'.e($errors->first()).'</div>';
+        } elseif (is_string(session('status'))) {
+            $message = '<div class="alert alert-success mb-3" role="status">'.e(session('status')).'</div>';
+        }
+
+        if ($message !== '') {
+            $html = preg_replace(
+                '/(<form\b[^>]*\bclass="stripe-create"[^>]*>)/i',
+                '$1'.$message,
+                $html,
+                1,
+            ) ?? $html;
+        }
+
+        return $html;
     }
 
     protected function applyAuthenticatedNavigation(string $html, string $page): string

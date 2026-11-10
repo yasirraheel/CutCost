@@ -52,6 +52,15 @@ foreach ($protectedPages as $name => [$canonicalPath, $htmlPath]) {
     Route::get('/'.$htmlPath, [CapturedPageController::class, 'show'])
         ->defaults('page', $htmlPath)
         ->middleware('auth');
+
+    if ($name === 'account') {
+        Route::post('/'.$canonicalPath, [AuthController::class, 'updateAccount'])
+            ->middleware('auth')
+            ->name('user.account.update');
+
+        Route::post('/'.$htmlPath, [AuthController::class, 'updateAccount'])
+            ->middleware('auth');
+    }
 }
 
 // Keep all supplied captured pages routable while avoiding a new design layer.
