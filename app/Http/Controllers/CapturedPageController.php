@@ -31,12 +31,47 @@ class CapturedPageController extends Controller
 
     public function show(string $page): Response
     {
+        if ($redirect = $this->adminRedirect($page)) {
+            return $redirect;
+        }
+
         return $this->pageResponse($page);
     }
 
     public function identityPage(): Response
     {
+        if (Auth::user()?->isAdmin() && ! request()->is('en/admin*')) {
+            return redirect('/en/admin/account/identity');
+        }
+
         return $this->pageResponse('en/my-account.html', true);
+    }
+
+    protected function adminRedirect(string $page): ?Response
+    {
+        if (! Auth::user()?->isAdmin() || request()->is('en/admin*')) {
+            return null;
+        }
+
+        $sections = [
+            'en/dashboard.html' => 'dashboard',
+            'en/my-shared-subscriptions.html' => 'shared-subscriptions',
+            'en/joined-subscriptions.html' => 'joined-subscriptions',
+            'en/waiting-list.html' => 'waiting-list',
+            'en/my-wallet.html' => 'wallet',
+            'en/my-cards.html' => 'cards',
+            'en/my-account.html' => 'account',
+            'en/my-settings.html' => 'settings',
+            'en/my-chat/subscriptions.html' => 'chat',
+        ];
+
+        if (! isset($sections[$page])) {
+            return null;
+        }
+
+        $section = $sections[$page];
+
+        return redirect($section === 'dashboard' ? '/en/admin' : '/en/admin/'.$section);
     }
 
     public function authPage(string $type, Request $request): Response
