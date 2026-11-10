@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class CapturedPageController extends Controller
@@ -108,9 +109,49 @@ class CapturedPageController extends Controller
         );
 
         $html = $this->applyAuthenticatedNavigation($html, $page);
+        $html = $this->applyAuthenticatedUserData($html);
         $html = $this->applyAccountData($html, $page);
 
         return response($html)->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    protected function applyAuthenticatedUserData(string $html): string
+    {
+        if (! Auth::check()) {
+            return $html;
+        }
+
+        $user = Auth::user();
+        $nameParts = preg_split('/\s+/', trim((string) $user->name), 2) ?: [];
+        $firstName = (string) ($user->first_name ?: ($nameParts[0] ?? ''));
+        $fullName = trim((string) ($user->first_name ?: '').' '.(string) ($user->last_name ?: ''));
+        $fullName = $fullName !== '' ? $fullName : (string) $user->name;
+        $publicName = (string) ($user->username ?: $fullName ?: Str::before((string) $user->email, '@'));
+
+        $javascriptValues = [
+            'email' => (string) $user->email,
+            'fullname' => $publicName,
+        ];
+
+        foreach ($javascriptValues as $key => $value) {
+            $escapedKey = preg_quote($key, '/');
+            $encodedValue = json_encode($value, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+            $html = preg_replace_callback(
+                '/(window\.sharesubVars\[\''.$escapedKey.'\'\]\s*=\s*)\'[^\']*\'/i',
+                static fn (array $match): string => $match[1].$encodedValue,
+                $html,
+            ) ?? $html;
+        }
+
+        if ($firstName !== '') {
+            $html = preg_replace_callback(
+                '/(<h1\b[^>]*\bclass="dashboard-header-title"[^>]*>\s*Hello,\s*<span\b[^>]*\bclass="text-green"[^>]*>)[^<]*(<\/span>\s*<\/h1>)/i',
+                static fn (array $match): string => $match[1].e($firstName).$match[2],
+                $html,
+            ) ?? $html;
+        }
+
+        return $html;
     }
 
     protected function applyAccountData(string $html, string $page): string
