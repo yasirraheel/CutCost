@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -69,6 +70,26 @@ class SettingsController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/en/');
+    }
+
+    public function revokeDevice(Request $request)
+    {
+        $validated = $request->validate([
+            'session_id' => ['required', 'string', 'max:255'],
+        ]);
+
+        if ($validated['session_id'] === $request->session()->getId()) {
+            return $this->settingsError('The current device cannot be revoked here. Use Logout instead.', 'security');
+        }
+
+        DB::table('sessions')
+            ->where('id', $validated['session_id'])
+            ->where('user_id', $request->user()->id)
+            ->delete();
+
+        return redirect('/en/my-settings#security')
+            ->with('status', 'The selected device has been revoked.')
+            ->with('settings_tab', 'security');
     }
 
     /** @return list<string> */

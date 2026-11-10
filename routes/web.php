@@ -38,6 +38,8 @@ Route::middleware('auth')->group(function (): void {
         ->name('user.settings.password');
     Route::post('/en/my-settings/preferences', [SettingsController::class, 'updatePreferences'])
         ->name('user.settings.preferences');
+    Route::post('/en/my-settings/device/revoke', [SettingsController::class, 'revokeDevice'])
+        ->name('user.settings.device.revoke');
     Route::post('/en/my-settings/delete', [SettingsController::class, 'deleteAccount'])
         ->name('user.settings.delete');
 });

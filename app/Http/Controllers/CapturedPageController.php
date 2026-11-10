@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\KycSubmission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -297,6 +298,17 @@ class CapturedPageController extends Controller
         $html = $this->setSettingsCheckbox($html, 'payoutLowAmount', (bool) $user->payout_low_amount);
         $html = $this->setSettingsCheckbox($html, 'payoutConvertCurrency', (bool) $user->payout_convert_currency);
 
+        $devices = DB::table('sessions')
+            ->where('user_id', $user->id)
+            ->orderByDesc('last_activity')
+            ->get();
+        $deviceMarkup = $this->trustedDevicesMarkup($devices, session()->getId());
+        $html = str_replace(
+            '<p class="text-muted">No device registered.</p>',
+            $deviceMarkup,
+            $html,
+        );
+
         $deleteForm = '<form method="POST" action="/en/my-settings/delete" class="settings-delete-form">'
             .'<input type="hidden" name="_token" value="'.csrf_token().'">'
             .'<div class="p1-bold mt-4 mb-2">Account deletion</div>'
@@ -357,6 +369,33 @@ class CapturedPageController extends Controller
             $html,
             1,
         ) ?? $html;
+    }
+
+    protected function trustedDevicesMarkup(object $devices, string $currentSessionId): string
+    {
+        if ($devices->isEmpty()) {
+            return '<p class="text-muted">No device registered.</p>';
+        }
+
+        $html = '<div class="settings-trusted-devices">';
+        foreach ($devices as $device) {
+            $isCurrent = (string) $device->id === $currentSessionId;
+            $lastActive = date('Y-m-d H:i', (int) $device->last_activity);
+            $label = $isCurrent ? 'This device' : 'Signed-in device';
+            $details = $label.' · '.((string) ($device->ip_address ?: 'Unknown IP')).' · Last active '.$lastActive;
+            $html .= '<div class="d-flex align-items-center justify-content-between mb-2">'
+                .'<span class="text-muted">'.e($details).'</span>';
+            if (! $isCurrent) {
+                $html .= '<form method="POST" action="/en/my-settings/device/revoke" class="ml-2">'
+                    .'<input type="hidden" name="_token" value="'.csrf_token().'">'
+                    .'<input type="hidden" name="session_id" value="'.e((string) $device->id).'">'
+                    .'<button type="submit" class="btn-sharesub red outline small">Revoke</button>'
+                    .'</form>';
+            }
+            $html .= '</div>';
+        }
+
+        return $html.'</div>';
     }
 
     protected function applyAuthenticatedUserData(string $html): string
