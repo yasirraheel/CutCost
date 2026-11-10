@@ -1,0 +1,10 @@
+<IfModule mod_rewrite.c>
+    Options -MultiViews -Indexes
+    RewriteEngine On
+
+    # The shared-hosting document root is the repository root. Laravel's
+    # public directory remains the only web entry point so captured HTML
+    # files cannot bypass Laravel authentication middleware.
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
