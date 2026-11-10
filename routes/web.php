@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CapturedPageController;
+use App\Http\Controllers\KycController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [CapturedPageController::class, 'show'])->defaults('page', 'index.html');
@@ -30,6 +31,18 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::post('/en/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+
+Route::middleware('auth')->group(function (): void {
+    Route::get('/en/my-account/identity', [KycController::class, 'show'])->name('user.identity');
+    Route::post('/en/my-account/identity', [KycController::class, 'submit']);
+});
+
+Route::middleware(['auth', 'role:admin'])->prefix('en/admin')->group(function (): void {
+    Route::get('/kyc', [KycController::class, 'adminIndex'])->name('admin.kyc');
+    Route::post('/kyc/{submission}/approve', [KycController::class, 'approve'])->name('admin.kyc.approve');
+    Route::post('/kyc/{submission}/reject', [KycController::class, 'reject'])->name('admin.kyc.reject');
+    Route::get('/kyc/{submission}/document/{side}', [KycController::class, 'download'])->name('admin.kyc.download');
+});
 
 $protectedPages = [
     'dashboard' => ['en/dashboard', 'en/dashboard.html'],

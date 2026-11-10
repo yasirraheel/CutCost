@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\KycSubmission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -30,6 +31,11 @@ class CapturedPageController extends Controller
     public function show(string $page): Response
     {
         return $this->pageResponse($page);
+    }
+
+    public function identityPage(): Response
+    {
+        return $this->pageResponse('en/my-account.html', true);
     }
 
     public function authPage(string $type, Request $request): Response
@@ -98,7 +104,7 @@ class CapturedPageController extends Controller
         abort(404);
     }
 
-    protected function pageResponse(string $page): Response
+    protected function pageResponse(string $page, bool $identityPage = false): Response
     {
         $html = $this->readPage($page);
         $html = $this->replaceCsrfTokens($html);
@@ -110,9 +116,140 @@ class CapturedPageController extends Controller
 
         $html = $this->applyAuthenticatedNavigation($html, $page);
         $html = $this->applyAuthenticatedUserData($html);
-        $html = $this->applyAccountData($html, $page);
+        $html = $this->applyAccountTabs($html, $identityPage);
+        $html = $identityPage
+            ? $this->applyIdentityPage($html)
+            : $this->applyAccountData($html, $page);
 
         return response($html)->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    protected function applyAccountTabs(string $html, bool $identityPage): string
+    {
+        $accountClass = 'col-6 col-md-4 p-2 tab-navigation'.($identityPage ? '' : ' current');
+        $identityClass = 'col-6 col-md-4 p-2 tab-navigation'.($identityPage ? ' current' : '');
+
+        $html = preg_replace(
+            '/<a href="\/en\/dashboard\.html" class="col-6 col-md-4 p-2 tab-navigation current">/',
+            '<a href="/en/my-account.html" class="'.$accountClass.'">',
+            $html,
+            1,
+        ) ?? $html;
+        $html = preg_replace(
+            '/<a href="\/en\/my-account\.html" class="col-6 col-md-4 p-2 tab-navigation">/',
+            '<a href="/en/my-account/identity" class="'.$identityClass.'">',
+            $html,
+            1,
+        ) ?? $html;
+        $html = str_replace(
+            'href="/en/my-account.html">Identity &amp; Verification',
+            'href="/en/my-account/identity">Identity &amp; Verification',
+            $html,
+        );
+        $html = str_replace(
+            'href="/en/my-account.html" class="navi_dash-link active "',
+            'href="/en/my-account/identity" class="navi_dash-link active "',
+            $html,
+        );
+        $html = str_replace(
+            'href="/en/my-account.html" class="dash-sheet-link active"',
+            'href="/en/my-account/identity" class="dash-sheet-link active"',
+            $html,
+        );
+
+        return $html;
+    }
+
+    protected function applyIdentityPage(string $html): string
+    {
+        $submission = Auth::user()->kycSubmission;
+        $html = $this->applyKycStatusNotice($html);
+        $message = session('errors')?->first('kyc') ?: session('errors')?->first();
+
+        if (! is_string($message) || $message === '') {
+            $message = is_string(session('status')) ? session('status') : null;
+        }
+
+        $status = $submission?->status ?? KycSubmission::STATUS_NOT_SUBMITTED;
+        $form = $this->identityForm($submission, $message);
+        $html = preg_replace(
+            '/<form\b[^>]*\bclass="stripe-create"[^>]*>.*?<\/form>/is',
+            $form,
+            $html,
+            1,
+        ) ?? $html;
+
+        return $html;
+    }
+
+    protected function applyKycStatusNotice(string $html): string
+    {
+        $submission = Auth::user()->kycSubmission;
+        $status = $submission?->status ?? KycSubmission::STATUS_NOT_SUBMITTED;
+        $toast = match ($status) {
+            KycSubmission::STATUS_UNDER_REVIEW => 'Your identity documents are under review.',
+            KycSubmission::STATUS_APPROVED => 'Your identity has been approved.',
+            KycSubmission::STATUS_REJECTED => 'Your identity verification was rejected. Please submit new documents.',
+            default => 'Please complete your identity verification.',
+        };
+        if ($submission?->admin_note && $status === KycSubmission::STATUS_REJECTED) {
+            $toast .= ' Reason: '.e($submission->admin_note);
+        }
+
+        $html = str_replace(
+            'Please complete your identity first (my account information form)',
+            $toast,
+            $html,
+        );
+        if ($status === KycSubmission::STATUS_APPROVED) {
+            $html = preg_replace(
+                '/(<div class="sharesub-flash sharesub-flash--warning" role="alert")/',
+                '$1 style="display:none"',
+                $html,
+                1,
+            ) ?? $html;
+        }
+
+        return $html;
+    }
+
+    protected function identityForm(?KycSubmission $submission, ?string $message): string
+    {
+        $status = $submission?->status ?? KycSubmission::STATUS_NOT_SUBMITTED;
+        $statusLabel = match ($status) {
+            KycSubmission::STATUS_UNDER_REVIEW => 'Under review',
+            KycSubmission::STATUS_APPROVED => 'Approved',
+            KycSubmission::STATUS_REJECTED => 'Rejected',
+            default => 'Not submitted',
+        };
+        $statusClass = $status === KycSubmission::STATUS_APPROVED ? 'alert-success' : ($status === KycSubmission::STATUS_REJECTED ? 'alert-danger' : 'alert-info');
+        $html = '<div class="p1-bold mb-2">Identity verification</div>'
+            .'<div class="alert '.$statusClass.' mb-3" role="status"><strong>Status: '.e($statusLabel).'</strong>';
+        if ($status === KycSubmission::STATUS_UNDER_REVIEW) {
+            $html .= '<br>Your CNIC documents have been submitted. An administrator will review them.';
+        } elseif ($status === KycSubmission::STATUS_APPROVED) {
+            $html .= '<br>Your identity has been verified successfully.';
+        } elseif ($status === KycSubmission::STATUS_REJECTED && $submission?->admin_note) {
+            $html .= '<br>'.e($submission->admin_note);
+        }
+        $html .= '</div>';
+
+        if ($message) {
+            $html .= '<div class="alert alert-danger mb-3" role="alert">'.e($message).'</div>';
+        }
+
+        if (in_array($status, [KycSubmission::STATUS_APPROVED, KycSubmission::STATUS_UNDER_REVIEW], true)) {
+            return '<div class="kyc-upload-panel">'.$html.'</div>';
+        }
+
+        return '<form class="kyc-upload-form" method="POST" action="/en/my-account/identity" enctype="multipart/form-data">'
+            .'<input type="hidden" name="_token" value="'.csrf_token().'">'
+            .$html
+            .'<p class="mb-3">Upload the front and back of your CNIC. Accepted files: JPG, PNG or PDF, maximum 5 MB each.</p>'
+            .'<div class="form-group"><label for="cnic_front">CNIC front</label><input type="file" name="cnic_front" id="cnic_front" class="input-sharesub" accept="image/jpeg,image/png,application/pdf" required></div>'
+            .'<div class="form-group"><label for="cnic_back">CNIC back</label><input type="file" name="cnic_back" id="cnic_back" class="input-sharesub" accept="image/jpeg,image/png,application/pdf" required></div>'
+            .'<button type="submit" class="btn-sharesub bleu mx-auto my-2 d-block">Submit for review</button>'
+            .'</form>';
     }
 
     protected function applyAuthenticatedUserData(string $html): string
@@ -160,6 +297,7 @@ class CapturedPageController extends Controller
             return $html;
         }
 
+        $html = $this->applyKycStatusNotice($html);
         $user = Auth::user();
         $nameParts = preg_split('/\s+/', trim((string) $user->name), 2) ?: [];
         $values = [
