@@ -85,7 +85,7 @@ for (const relative of pages) {
   // Restore the captured dashboard navigation links that were saved as placeholders.
   html = html.replace(/<a\b[^>]*href=["']#offline["'][^>]*>[\s\S]*?<\/a>/gi, (anchor) => {
     const label = anchor.replace(/<[^>]+>/g, ' ').replace(/&[^;]+;/g, ' ').replace(/\s+/g, ' ').trim();
-    const destination = /aria-label=["']Syndicate/i.test(anchor) ? '/en/index.html'
+    const destination = /aria-label=["']CutCost/i.test(anchor) ? '/en/index.html'
       : /aria-label=["']Items to Resolve/i.test(anchor) ? '/en/dashboard.html'
       : /Shared subscriptions/i.test(label) ? '/en/my-shared-subscriptions'
       : /Joined subscriptions|See my expenses/i.test(label) ? '/en/joined-subscriptions'
