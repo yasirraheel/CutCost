@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AdminPanelController;
 use App\Http\Controllers\CapturedPageController;
 use App\Http\Controllers\KycController;
 use App\Http\Controllers\SettingsController;
@@ -50,10 +51,17 @@ Route::middleware('auth')->group(function (): void {
 });
 
 Route::middleware(['auth', 'role:admin'])->prefix('en/admin')->group(function (): void {
+    Route::get('/', [AdminPanelController::class, 'show'])
+        ->defaults('section', 'dashboard')
+        ->name('admin.dashboard');
+    Route::get('/account/identity', [AdminPanelController::class, 'identity'])
+        ->name('admin.account.identity');
     Route::get('/kyc', [KycController::class, 'adminIndex'])->name('admin.kyc');
     Route::post('/kyc/{submission}/approve', [KycController::class, 'approve'])->name('admin.kyc.approve');
     Route::post('/kyc/{submission}/reject', [KycController::class, 'reject'])->name('admin.kyc.reject');
     Route::get('/kyc/{submission}/document/{side}', [KycController::class, 'download'])->name('admin.kyc.download');
+    Route::get('/{section}', [AdminPanelController::class, 'show'])
+        ->where('section', 'dashboard|shared-subscriptions|joined-subscriptions|waiting-list|wallet|cards|account|settings|chat');
 });
 
 $protectedPages = [

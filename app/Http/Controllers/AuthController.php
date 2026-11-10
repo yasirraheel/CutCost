@@ -119,6 +119,10 @@ class AuthController extends Controller
 
     protected function safeReturnUrl(?string $return): string
     {
+        if (Auth::user()?->isAdmin()) {
+            return '/en/admin';
+        }
+
         if (is_string($return) && Str::startsWith($return, '/en/')) {
             return $return;
         }
