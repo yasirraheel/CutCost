@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CapturedPageController;
 use App\Http\Controllers\KycController;
+use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [CapturedPageController::class, 'show'])->defaults('page', 'index.html');
@@ -31,6 +32,15 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::post('/en/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+
+Route::middleware('auth')->group(function (): void {
+    Route::post('/en/my-settings/security', [SettingsController::class, 'updatePassword'])
+        ->name('user.settings.password');
+    Route::post('/en/my-settings/preferences', [SettingsController::class, 'updatePreferences'])
+        ->name('user.settings.preferences');
+    Route::post('/en/my-settings/delete', [SettingsController::class, 'deleteAccount'])
+        ->name('user.settings.delete');
+});
 
 Route::middleware('auth')->group(function (): void {
     Route::get('/en/my-account/identity', [KycController::class, 'show'])->name('user.identity');

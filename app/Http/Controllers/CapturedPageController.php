@@ -117,9 +117,13 @@ class CapturedPageController extends Controller
         $html = $this->applyAuthenticatedNavigation($html, $page);
         $html = $this->applyAuthenticatedUserData($html);
         $html = $this->applyAccountTabs($html, $identityPage);
-        $html = $identityPage
-            ? $this->applyIdentityPage($html)
-            : $this->applyAccountData($html, $page);
+        if ($identityPage) {
+            $html = $this->applyIdentityPage($html);
+        } elseif ($page === 'en/my-settings.html') {
+            $html = $this->applySettingsData($html);
+        } else {
+            $html = $this->applyAccountData($html, $page);
+        }
 
         return response($html)->header('Content-Type', 'text/html; charset=UTF-8');
     }
@@ -248,6 +252,111 @@ class CapturedPageController extends Controller
             .'<div class="form-group"><label for="cnic_back">CNIC back</label><input type="file" name="cnic_back" id="cnic_back" class="input-sharesub" accept="image/jpeg,image/png,application/pdf" required></div>'
             .'<button type="submit" class="btn-sharesub bleu mx-auto my-2 d-block">Submit for review</button>'
             .'</form>';
+    }
+
+    protected function applySettingsData(string $html): string
+    {
+        $user = Auth::user();
+
+        $html = str_replace(
+            '<form method="POST" action="#security">',
+            '<form method="POST" action="/en/my-settings/security">',
+            $html,
+        );
+        $html = str_replace(
+            '<form method="POST" action="#settings">',
+            '<form method="POST" action="/en/my-settings/preferences">',
+            $html,
+        );
+
+        $html = preg_replace_callback(
+            '/(<input\b(?=[^>]*\bname="referral_code")[^>]*\bvalue=")[^"]*(")/i',
+            fn (array $match): string => $match[1].e((string) ($user->referral_code ?? '')).$match[2],
+            $html,
+            1,
+        ) ?? $html;
+
+        $language = (string) ($user->language ?: 'en');
+        $html = preg_replace_callback(
+            '/(<select\b[^>]*\bname="lang"[^>]*>.*?<\/select>)/is',
+            function (array $matches) use ($language): string {
+                $select = preg_replace('/\sselected\b/i', '', $matches[1]) ?? $matches[1];
+                $value = preg_quote($language, '/');
+
+                return preg_replace(
+                    '/(<option\b[^>]*\bvalue="'.$value.'"[^>]*)>/i',
+                    '$1 selected>',
+                    $select,
+                    1,
+                ) ?? $select;
+            },
+            $html,
+            1,
+        ) ?? $html;
+
+        $html = $this->setSettingsCheckbox($html, 'payoutLowAmount', (bool) $user->payout_low_amount);
+        $html = $this->setSettingsCheckbox($html, 'payoutConvertCurrency', (bool) $user->payout_convert_currency);
+
+        $deleteForm = '<form method="POST" action="/en/my-settings/delete" class="settings-delete-form">'
+            .'<input type="hidden" name="_token" value="'.csrf_token().'">'
+            .'<div class="p1-bold mt-4 mb-2">Account deletion</div>'
+            .'<p>To delete your account, you must have cancelled all subscriptions and stopped all sharing. Deletion is definitive and entails loss of access to your data and the impossibility of obtaining refunds or transfers</p>'
+            .'<p>To permanently delete your account, type "Delete" and confirm:</p>'
+            .'<div class="form-row align-items-center">'
+            .'<div class="col"><input type="text" name="confirmation" class="input-sharesub" placeholder="Delete" required></div>'
+            .'<div class="col-auto"><button type="submit" class="btn-sharesub red outline delete-account-button">Delete my account</button></div>'
+            .'</div>'
+            .'</form>';
+        $html = preg_replace(
+            '/<delete-account\b.*?<\/delete-account>/is',
+            $deleteForm,
+            $html,
+            1,
+        ) ?? $html;
+
+        $errors = session('errors');
+        $flash = '';
+        if ($errors && $errors->any()) {
+            $flash = '<div class="alert alert-danger mb-3" role="alert">'.e($errors->first()).'</div>';
+        } elseif (is_string(session('status'))) {
+            $flash = '<div class="alert alert-success mb-3" role="status">'.e(session('status')).'</div>';
+        }
+
+        if ($flash !== '') {
+            $tab = (string) session('settings_tab', 'security');
+            $action = match ($tab) {
+                'preferences' => '/en/my-settings/preferences',
+                'delete' => '/en/my-settings/delete',
+                default => '/en/my-settings/security',
+            };
+            $html = preg_replace(
+                '/(<form\b[^>]*\baction="'.preg_quote($action, '/').'"[^>]*>)/i',
+                '$1'.$flash,
+                $html,
+                1,
+            ) ?? $html;
+        }
+
+        return $html;
+    }
+
+    protected function setSettingsCheckbox(string $html, string $id, bool $checked): string
+    {
+        return preg_replace_callback(
+            '/<input\b[^>]*\bid="'.preg_quote($id, '/').'"[^>]*>/i',
+            static function (array $matches) use ($checked): string {
+                $tag = preg_replace('/\schecked\b/i', '', $matches[0]) ?? $matches[0];
+                if (! $checked) {
+                    return $tag;
+                }
+
+                return preg_replace('/\s*\/>$/', ' checked />', $tag)
+                    ?? preg_replace('/>$/', ' checked>', $tag)
+                    ?? $tag;
+            },
+            $html,
+            1,
+        ) ?? $html;
     }
 
     protected function applyAuthenticatedUserData(string $html): string

@@ -28,6 +28,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'zip',
     'state',
     'country',
+    'referral_code',
+    'language',
+    'payout_low_amount',
+    'payout_convert_currency',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -56,6 +60,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'birthdate' => 'date:Y-m-d',
             'password' => 'hashed',
+            'payout_low_amount' => 'boolean',
+            'payout_convert_currency' => 'boolean',
         ];
     }
 }
