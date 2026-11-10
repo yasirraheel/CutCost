@@ -17746,7 +17746,7 @@
                                         })), document.querySelector("input[data-phone]").addEventListener("countrychange", (function() {
                                             console.log("country change"), r()
                                         }))
-                                    })), $("form.stripe-create").length > 0) {
+                                    })), $("form.stripe-create").length > 0 && !document.querySelector('form.stripe-create[action="/en/my-account.html"]')) {
                                     var t = function() {
                                             var t = ds(ls().mark((function t(n) {
                                                 var r, i, o, a, s, c, u;
