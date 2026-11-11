@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Brand;
+use App\Models\Currency;
 use App\Models\Template;
 use Illuminate\Database\Seeder;
 
@@ -25,7 +26,8 @@ use Illuminate\Database\Seeder;
  * The prices row holds the retail price: prices[0].price is the full
  * retail price (for example 7.99 for Audible) while
  * current_country_price_with_fees is the shared seat price (1.85).
- * currency_id 826 is GBP; every calculator brand uses it.
+ * The row currency comes from the currencies table by its ISO numeric
+ * id; every calculator brand uses the default currency in the capture.
  *
  * Em and en dashes in the captured helper texts (Netflix) are
  * replaced with a plain hyphen and spaces, as elsewhere in the
@@ -33,13 +35,6 @@ use Illuminate\Database\Seeder;
  */
 class TemplateSeeder extends Seeder
 {
-    /** @var array<int, string> */
-    private const CURRENCY_BY_ID = [
-        826 => 'GBP',
-        978 => 'EUR',
-        840 => 'USD',
-    ];
-
     /** Calculator slugs that differ from the Brand slugs. */
     private const SLUG_ALIASES = [
         'nordvpn' => 'nord-vpn',
@@ -85,7 +80,7 @@ class TemplateSeeder extends Seeder
                 'available_seats' => isset($template['available_seats']) ? (int) $template['available_seats'] : null,
                 'price_with_fees' => (float) ($template['current_country_price_with_fees'] ?? 0),
                 'retail_price' => isset($priceRow['price']) && $priceRow['price'] !== null ? (float) $priceRow['price'] : null,
-                'currency' => self::CURRENCY_BY_ID[(int) ($priceRow['currency_id'] ?? 826)] ?? 'GBP',
+                'currency' => Currency::findByIsoNumeric((int) ($priceRow['currency_id'] ?? 0))?->code ?? Currency::defaultCode(),
                 'description' => $this->cleanText((string) ($template['description'] ?? '')) ?: null,
                 'description_seo' => $this->cleanText((string) ($template['description_seo'] ?? '')) ?: null,
                 'title_seo' => $this->cleanText((string) ($template['title_seo'] ?? '')) ?: null,

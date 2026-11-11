@@ -11,6 +11,7 @@ use App\Models\FooterLink;
 use App\Models\FooterLinkGroup;
 use App\Models\PressItem;
 use App\Models\SiteSetting;
+use App\Models\Template;
 use App\Models\Testimonial;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -42,6 +43,26 @@ class DynamicFrontendTest extends TestCase
             'background' => '#FF8900',
             'icon_svg' => '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M1 1h22v22H1z"/></svg>',
             'is_featured' => true,
+            'sort_order' => 0,
+            'is_active' => true,
+        ], $overrides));
+    }
+
+    private function makeTemplate(Brand $brand, array $overrides = []): Template
+    {
+        return Template::create(array_merge([
+            'brand_id' => $brand->id,
+            'name' => 'ZzTest Plan',
+            'slug' => 'zztest-plan',
+            'seats' => 6,
+            'shareable_seats' => 5,
+            'available_seats' => 5,
+            'cost_sharing' => 1,
+            'credentials_type' => 0,
+            'frequency' => 2,
+            'price_with_fees' => 4.95,
+            'retail_price' => 21.99,
+            'currency' => 'GBP',
             'sort_order' => 0,
             'is_active' => true,
         ], $overrides));
@@ -82,6 +103,31 @@ class DynamicFrontendTest extends TestCase
         $response->assertSee('ZzTest');
         $response->assertDontSee('ZzHidden');
         $response->assertDontSee('£123.45');
+    }
+
+    public function test_calculator_brands_json_contains_frequency_for_every_template(): void
+    {
+        $brandA = $this->makeBrand(['name' => 'ZzFreq', 'slug' => 'zzfreq']);
+        $this->makeTemplate($brandA, ['frequency' => 2, 'cost_sharing' => 1, 'credentials_type' => 4]);
+        $brandB = $this->makeBrand(['name' => 'ZzFreqTwo', 'slug' => 'zzfreqtwo', 'sort_order' => 1]);
+        $this->makeTemplate($brandB, ['slug' => 'zzfreqtwo-plan', 'frequency' => 2, 'cost_sharing' => 1, 'credentials_type' => 0]);
+
+        $response = $this->get('/en');
+
+        $response->assertStatus(200);
+        $this->assertSame(1, preg_match("/:brands='([^']*)'/", (string) $response->getContent(), $matches));
+        $brands = json_decode($matches[1], true);
+        $this->assertIsArray($brands);
+        $this->assertCount(2, $brands);
+
+        foreach ($brands as $brand) {
+            $template = $brand['lowest_price_template'];
+            $this->assertArrayHasKey('frequency', $template);
+            $this->assertSame(2, $template['frequency']);
+            $this->assertArrayHasKey('cost_sharing', $template);
+            $this->assertSame(1, $template['cost_sharing']);
+            $this->assertArrayHasKey('credentials_type', $template);
+        }
     }
 
     public function test_homepage_keeps_the_captured_carousel_when_no_featured_brands_exist(): void

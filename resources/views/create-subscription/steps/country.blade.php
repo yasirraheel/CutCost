@@ -20,6 +20,9 @@
                     <input type="radio" name="country_id" id="country-{{ $country->id }}" value="{{ $country->id }}" {{ (int) old('country_id', $offer->country_id) === (int) $country->id ? 'checked' : '' }} required>
                 </div>
                 <div class="col">
+                    @if ($country->flag_url)
+                        <img src="{{ $country->flag_url }}" alt="{{ $country->name }} flag" style="width: 24px; height: 18px; margin-right: 6px; vertical-align: middle;">
+                    @endif
                     <label for="country-{{ $country->id }}">{{ $country->name }}</label>
                 </div>
             </li>

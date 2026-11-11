@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Currency;
 use App\Models\Faq;
 use App\Models\Feature;
 use App\Models\FooterLink;
@@ -217,8 +218,11 @@ class ContentSeeder extends Seeder
                 'name' => $name,
                 'slug' => Str::slug($name),
                 'price' => $price,
-                'currency' => 'GBP',
-                'currency_symbol' => '£',
+                // The capture gives no per-brand currency (hero prices are
+                // in the current country's currency, the UK), so brands
+                // take the default currency code and its table symbol.
+                'currency' => Currency::defaultCode(),
+                'currency_symbol' => Currency::defaultSymbol(),
                 'discount_percent' => $discount,
                 'background' => $background,
                 'icon_svg' => $icon !== null ? $this->outerHtml($icon) : null,
@@ -363,6 +367,11 @@ class ContentSeeder extends Seeder
         if ($copyright !== null) {
             $values['footer_copyright'] = $this->clean($copyright->textContent);
         }
+
+        // The default currency is the capture's current country currency
+        // (United Kingdom, GBP); it is a site setting, not a capture value,
+        // and is editable in Site Settings.
+        $values['default_currency_code'] = Currency::defaultCode();
 
         $values = array_merge($values, $this->navSettingValues($index));
         $values = array_merge($values, $this->seoSettingValues($index, $subscriptions, $house));

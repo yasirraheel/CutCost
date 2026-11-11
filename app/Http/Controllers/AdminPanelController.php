@@ -203,6 +203,17 @@ HTML;
     </a>
 </li>
 <li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/currencies">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="3" y="8" width="24" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                <circle cx="15" cy="15" r="4" fill="none" stroke="currentColor" stroke-width="2" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Currencies</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
     <a class="navi_dash-link" href="/en/admin/templates">
         <span class="navi_dash-icon">
             <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

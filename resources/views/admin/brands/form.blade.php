@@ -17,10 +17,14 @@
     </div>
     <div class="col-12 col-md-4 form-group">
         <label for="currency">Currency code</label>
-        <input class="input-sharesub" id="currency" name="currency" maxlength="3" value="{{ old('currency', $brand->currency) }}">
+        <select class="input-sharesub" id="currency" name="currency">
+            @foreach ($currencies as $currencyOption)
+                <option value="{{ $currencyOption->code }}" @selected(old('currency', $brand->currency) === $currencyOption->code)>{{ $currencyOption->code }} ({{ $currencyOption->symbol }}) {{ $currencyOption->name }}</option>
+            @endforeach
+        </select>
     </div>
     <div class="col-12 col-md-4 form-group">
-        <label for="currency_symbol">Currency symbol</label>
+        <label for="currency_symbol">Currency symbol <span class="text-muted">(blank uses the currency default)</span></label>
         <input class="input-sharesub" id="currency_symbol" name="currency_symbol" maxlength="5" value="{{ old('currency_symbol', $brand->currency_symbol) }}">
     </div>
     <div class="col-12 col-md-6 form-group">
@@ -59,7 +63,7 @@
     <div class="col-12 form-group">
         <label for="logo">Logo image <span class="text-muted">(jpg, png, webp or svg, max 2 MB)</span></label>
         @if ($brand->logo_path)
-            <div class="mb-2"><img src="{{ asset('storage/'.$brand->logo_path) }}" alt="" style="max-height: 60px;"></div>
+            <div class="mb-2"><img src="{{ str_starts_with($brand->logo_path, '/') || str_starts_with($brand->logo_path, 'http') ? asset($brand->logo_path) : asset('storage/'.$brand->logo_path) }}" alt="" style="max-height: 60px;"></div>
         @endif
         <input class="input-sharesub" id="logo" name="logo" type="file" accept=".jpg,.jpeg,.png,.webp,.svg">
     </div>

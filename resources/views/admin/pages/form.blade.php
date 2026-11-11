@@ -20,7 +20,7 @@
     </div>
     <div class="col-12 form-group">
         <label for="body_html">Body HTML</label>
-        <textarea class="input-sharesub" id="body_html" name="body_html" rows="12" required>{{ old('body_html', $page->body_html) }}</textarea>
+        <textarea class="input-sharesub rich-text-editor" id="body_html" name="body_html" rows="12" required>{{ old('body_html', $page->body_html) }}</textarea>
     </div>
     <div class="col-12 col-md-6 form-group">
         <label for="sort_order">Sort order</label>
@@ -29,7 +29,7 @@
     <div class="col-12 col-md-6 form-group">
         <label for="image">Image <span class="text-muted">(jpg, png, webp or svg, max 2 MB)</span></label>
         @if ($page->image_path)
-            <div class="mb-2"><img src="{{ asset('storage/'.$page->image_path) }}" alt="" style="max-height: 60px;"></div>
+            <div class="mb-2"><img src="{{ str_starts_with($page->image_path, '/') || str_starts_with($page->image_path, 'http') ? asset($page->image_path) : asset('storage/'.$page->image_path) }}" alt="" style="max-height: 60px;"></div>
         @endif
         <input class="input-sharesub" id="image" name="image" type="file" accept=".jpg,.jpeg,.png,.webp,.svg">
     </div>
@@ -43,3 +43,5 @@
         </div>
     </div>
 </div>
+
+@include('admin.partials.rich-text-editor')

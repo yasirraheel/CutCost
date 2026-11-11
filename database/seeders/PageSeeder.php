@@ -10,7 +10,7 @@ use Illuminate\Database\Seeder;
 
 /**
  * Seeds the pages table by parsing the captured static CMS HTML in
- * public/cms/en at seed time. Nothing here is invented: every title,
+ * resources/captured/cms/en at seed time. Nothing here is invented: every title,
  * excerpt and body comes from the captured file for that slug.
  *
  * The table is seeded only when it is empty, so running this seeder
@@ -48,7 +48,7 @@ class PageSeeder extends Seeder
 
         $order = 0;
         foreach (self::FILES as $entry) {
-            $document = $this->loadDocument(public_path('cms/en/'.$entry['file']));
+            $document = $this->loadDocument(resource_path('captured/cms/en/'.$entry['file']));
             if ($document === null) {
                 continue;
             }

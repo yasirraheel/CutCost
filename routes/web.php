@@ -5,6 +5,7 @@ use App\Http\Controllers\AdminBrandsController;
 use App\Http\Controllers\AdminBrandFaqsController;
 use App\Http\Controllers\AdminCategoriesController;
 use App\Http\Controllers\AdminCountriesController;
+use App\Http\Controllers\AdminCurrenciesController;
 use App\Http\Controllers\AdminFaqsController;
 use App\Http\Controllers\AdminFeaturesController;
 use App\Http\Controllers\AdminFooterLinkGroupsController;
@@ -26,7 +27,7 @@ use App\Http\Controllers\KycController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [CapturedPageController::class, 'show'])->defaults('page', 'index.html');
+Route::get('/', fn () => redirect('/en/', 301));
 Route::get('/en', [CapturedPageController::class, 'show'])->defaults('page', 'en/index.html')->name('home');
 Route::get('/en/', [CapturedPageController::class, 'show'])->defaults('page', 'en/index.html');
 Route::get('/en/index', [CapturedPageController::class, 'show'])->defaults('page', 'en/index.html');
@@ -113,6 +114,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('en/admin')->group(function ()
     Route::delete('/footer-groups/{group}/links/{link}', [AdminFooterLinksController::class, 'destroy'])->name('admin.footer-links.destroy');
     Route::resource('features', AdminFeaturesController::class)->names('admin.features')->parameters(['features' => 'feature'])->except('show');
     Route::resource('countries', AdminCountriesController::class)->names('admin.countries')->parameters(['countries' => 'country'])->except('show');
+    Route::resource('currencies', AdminCurrenciesController::class)->names('admin.currencies')->parameters(['currencies' => 'currency'])->except('show');
     Route::resource('templates', AdminTemplatesController::class)->names('admin.templates')->parameters(['templates' => 'template'])->except('show');
     Route::resource('reassurance', AdminReassuranceController::class)->names('admin.reassurance')->parameters(['reassurance' => 'reassuranceItem'])->except('show');
     Route::resource('brand-faqs', AdminBrandFaqsController::class)->names('admin.brand-faqs')->parameters(['brand-faqs' => 'brandFaq'])->except('show');

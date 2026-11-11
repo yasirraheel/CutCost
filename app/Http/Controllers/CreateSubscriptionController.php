@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Country;
+use App\Models\Currency;
 use App\Models\Offer;
 use App\Models\Template;
 use Illuminate\Http\JsonResponse;
@@ -47,15 +48,6 @@ class CreateSubscriptionController extends Controller
     private const DEFAULT_LAT = 48.859259117095;
 
     private const DEFAULT_LNG = 2.3515917396895;
-
-    /** Currency ids from the captured currencies prop. */
-    private const CURRENCY_BY_ID = [
-        826 => ['code' => 'GBP', 'symbol' => '£', 'name' => 'Pound Sterling'],
-        978 => ['code' => 'EUR', 'symbol' => '€', 'name' => 'Euro'],
-        840 => ['code' => 'USD', 'symbol' => '$', 'name' => 'US Dollar'],
-    ];
-
-    private const CURRENCY_ID_BY_CODE = ['GBP' => 826, 'EUR' => 978, 'USD' => 840];
 
     private const FREQUENCY_MULTIPLIERS = [1 => 52, 2 => 12, 3 => 4, 4 => 1];
 
@@ -151,7 +143,7 @@ class CreateSubscriptionController extends Controller
             'total_price' => ['required', 'numeric', 'min:0.01'],
             'frequency' => ['required', 'integer', 'in:1,2,3,4'],
             'visibility' => ['required', 'integer', 'in:0,1,2'],
-            'currency' => ['required', 'string', 'size:3'],
+            'currency' => ['required', 'string', 'size:3', 'exists:currencies,code'],
             'lat' => ['nullable', 'numeric', 'between:-90,90'],
             'lng' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
@@ -354,6 +346,8 @@ class CreateSubscriptionController extends Controller
             'templates' => $this->templateOptions($offer),
             'categories' => Category::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get(),
             'currencies' => $this->currencyOptions($offer),
+            'currencySymbol' => Currency::symbolFor($offer->currency) ?? Currency::defaultSymbol() ?? '',
+            'currencySymbols' => Currency::optionsForSelect(),
             'shareMath' => $this->shareMath($offer),
             'maxUsers' => $this->maxUsersFor($offer),
             'defaultLat' => self::DEFAULT_LAT,
@@ -397,27 +391,39 @@ class CreateSubscriptionController extends Controller
             ->orderBy('sort_order')->orderBy('id')->get();
     }
 
-    /** @return array<int, array{code: string, symbol: string, name: string}> */
+    /**
+     * Wizard currency options, from the currencies table (data, not
+     * literals). The offered list is the capture's intended rule: the
+     * selected country's currency first, then every currency flagged
+     * always_offered_in_wizard (EUR). A country currency is offered only
+     * when its row exists, is active and is available in the wizard; a
+     * country whose currency is not among the seeded rows (e.g. XPF) is
+     * offered the always-offered rows only. USD 840 is not seeded, so it
+     * can never be offered, matching the capture where the [978, 840]
+     * base list filters 840 out against the 21-row prop.
+     *
+     * @return array<int, array{code: string, symbol: string, name: string}>
+     */
     protected function currencyOptions(Offer $offer): array
     {
         $options = [];
-        $countryCurrency = $offer->country?->currency;
 
-        foreach ([$countryCurrency, 'EUR'] as $code) {
-            $code = $code !== null && $code !== '' ? strtoupper((string) $code) : null;
-            if ($code === null || isset($options[$code])) {
+        $codes = [];
+        $countryCode = strtoupper((string) ($offer->country?->currency ?? ''));
+        if ($countryCode !== '') {
+            $codes[] = $countryCode;
+        }
+        foreach (Currency::query()->active()->alwaysOffered()->ordered()->get() as $always) {
+            $codes[] = $always->code;
+        }
+
+        foreach (array_unique($codes) as $code) {
+            $row = Currency::findByCode($code);
+            if ($row === null || ! $row->is_active || ! $row->is_available_in_wizard) {
                 continue;
             }
 
-            $known = null;
-            foreach (self::CURRENCY_BY_ID as $currency) {
-                if ($currency['code'] === $code) {
-                    $known = $currency;
-                    break;
-                }
-            }
-
-            $options[$code] = $known ?? ['code' => $code, 'symbol' => $code, 'name' => $code];
+            $options[$code] = ['code' => $row->code, 'symbol' => $row->symbol, 'name' => $row->name];
         }
 
         return array_values($options);
@@ -499,7 +505,7 @@ class CreateSubscriptionController extends Controller
             'hash' => $this->newHash(),
             'title' => '',
             'price' => 0,
-            'currency' => 'GBP',
+            'currency' => Currency::defaultCode(),
             'share' => 1,
             'friends' => 3,
             'total_seats' => 3,
@@ -566,7 +572,7 @@ class CreateSubscriptionController extends Controller
         $offer->share = $template->cost_sharing ?? 1;
         $offer->frequency = $template->frequency ?? 2;
         $offer->visibility = 1;
-        $offer->currency = $template->currency ?? 'GBP';
+        $offer->currency = $template->currency ?: Currency::defaultCode();
         $offer->total_price = $template->retail_price ?? $template->price_with_fees ?? 0;
         $offer->price = $this->eachPays(
             (int) $offer->share,
@@ -597,7 +603,7 @@ class CreateSubscriptionController extends Controller
                 'lat' => ['required', 'numeric', 'between:-90,90'],
                 'lng' => ['required', 'numeric', 'between:-180,180'],
             ]),
-            'currency' => $request->validate(['currency' => ['required', 'string', 'size:3']]),
+            'currency' => $request->validate(['currency' => ['required', 'string', 'size:3', 'exists:currencies,code']]),
             'share' => $request->validate($this->shareRules($offer, $maxUsers)),
             default => null,
         };
@@ -777,7 +783,7 @@ class CreateSubscriptionController extends Controller
         if ((int) $offer->visibility === 2 && ($offer->lat === null || $offer->lng === null)) {
             $errors['lat'] = 'Add a position for a nearby subscription.';
         }
-        if ($offer->currency === null || $offer->currency === '') {
+        if ($offer->currency === null || $offer->currency === '' || Currency::findByCode($offer->currency) === null) {
             $errors['currency'] = 'Choose a currency first.';
         }
         if ($offer->friends === null || (int) $offer->friends < 1 || (int) $offer->friends > $maxUsers) {
@@ -879,7 +885,10 @@ class CreateSubscriptionController extends Controller
     /** @return array<string, mixed> */
     protected function templatePayload(Template $template, int $countryId): array
     {
-        $currencyId = self::CURRENCY_ID_BY_CODE[strtoupper((string) ($template->currency ?? 'GBP'))] ?? 826;
+        // The currency id comes from the currencies table (the template
+        // currency, falling back to the default currency row when the
+        // template names no row), never from a hardcoded map.
+        $currencyId = Currency::isoNumericForPayload($template->currency);
         $price = $template->retail_price !== null
             ? number_format((float) $template->retail_price, 2, '.', '')
             : ($template->price_with_fees !== null ? number_format((float) $template->price_with_fees, 2, '.', '') : '0.00');
@@ -937,7 +946,7 @@ class CreateSubscriptionController extends Controller
             'total_price' => $offer->total_price !== null ? (float) $offer->total_price : null,
             'custom_price' => (bool) $offer->custom_price,
             'frequency' => (int) ($offer->frequency ?? 2),
-            'currency_id' => self::CURRENCY_ID_BY_CODE[strtoupper((string) ($offer->currency ?? 'GBP'))] ?? null,
+            'currency_id' => Currency::isoNumericForPayload($offer->currency),
             'currency' => $offer->currency,
             'name' => $offer->name,
             'description' => $offer->description,
@@ -962,9 +971,13 @@ class CreateSubscriptionController extends Controller
         }
         if ($request->has('currency_id')) {
             $currencyId = $emptyToNull($request->input('currency_id'));
-            $offer->currency = $currencyId !== null && isset(self::CURRENCY_BY_ID[(int) $currencyId])
-                ? self::CURRENCY_BY_ID[(int) $currencyId]['code']
-                : $offer->currency;
+            // A posted id with no currency row (e.g. 840/USD, which the
+            // capture's prop does not contain) leaves the currency
+            // unchanged, the same as the capture's filter behaviour.
+            $currency = $currencyId !== null ? Currency::findByIsoNumeric((int) $currencyId) : null;
+            if ($currency !== null) {
+                $offer->currency = $currency->code;
+            }
         }
         if ($request->has('name')) {
             $offer->name = $emptyToNull($request->input('name'));

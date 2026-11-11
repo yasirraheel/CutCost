@@ -48,6 +48,22 @@ class BrandDetailTest extends TestCase
         $response->assertDontSee('£7.19');
     }
 
+    public function test_brand_page_hero_keeps_captured_styling_without_inline_background(): void
+    {
+        $this->makeBrand('Amazon', 'amazon', ['background' => '#FF8900']);
+        $this->makeBrand('Netflix', 'netflix', ['background' => '#d90b15']);
+
+        $amazon = $this->get('/en/brand/amazon');
+        $amazon->assertStatus(200);
+        $amazon->assertDontSee('<div class="model-header" style="background:', false);
+        $amazon->assertSee('<div class="model-header">', false);
+
+        $netflix = $this->get('/en/brand/netflix');
+        $netflix->assertStatus(200);
+        $netflix->assertDontSee('<div class="model-header" style="background:', false);
+        $netflix->assertSee('<div class="model-header">', false);
+    }
+
     public function test_brand_page_without_full_price_keeps_the_captured_price(): void
     {
         $this->makeBrand();

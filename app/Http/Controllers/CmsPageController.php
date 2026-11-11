@@ -33,20 +33,26 @@ class CmsPageController extends Controller
 
         if ($slug === 'index') {
             $posts = $this->activePosts();
-            if ($posts->isNotEmpty()) {
+            if ($posts->isNotEmpty() || $this->hasPostRows()) {
                 return $this->renderIndex($posts, $dbPage);
             }
         } elseif ($dbPage !== null) {
             return $this->renderDbPage($dbPage, $page);
+        } elseif ($this->hasPageRow($slug)) {
+            // A row exists for this slug but none is active: the page
+            // is hidden instead of falling back to the captured file.
+            abort(404);
         }
 
         abort_unless(isset(self::PAGES[$page]), 404);
 
-        $file = public_path('cms/en/'.self::PAGES[$page]);
+        $file = resource_path('captured/cms/en/'.self::PAGES[$page]);
         abort_unless(is_file($file), 404);
 
         $html = file_get_contents($file);
         $html = $this->normalizeLinks($html);
+        $html = $this->fixSpeculationRules($html);
+        $html = $this->replaceShareSubscriptionLinks($html);
 
         return response($html)
             ->header('Content-Type', 'text/html; charset=UTF-8')
@@ -54,18 +60,65 @@ class CmsPageController extends Controller
     }
 
     /**
+     * Point every share call to action on CMS pages at the wizard
+     * instead of the registration page. The CMS header carries a
+     * "Share a Subscription" menu link and some pages carry a "Got
+     * free spots? Share your subscription" banner link, both pointing
+     * at /en/register. Only anchors whose visible text is a share CTA
+     * are rewritten, so no other CMS link is touched.
+     */
+    protected function replaceShareSubscriptionLinks(string $html): string
+    {
+        $labels = [
+            'Share a Subscription',
+            'Got free spots? Share your subscription',
+            'Share my subscription',
+            'Propose a subscription',
+            'Create subscription',
+        ];
+
+        return preg_replace_callback(
+            '/<a\b[^>]*href="(?:\/en\/register(?:\.html)?|#offline)"[^>]*>.*?<\/a>/is',
+            static function (array $match) use ($labels): string {
+                $anchor = $match[0];
+
+                if (! preg_match('/<a\b[^>]*>(.*)<\/a>/is', $anchor, $inner)) {
+                    return $anchor;
+                }
+
+                $text = trim((string) preg_replace('/\s+/', ' ', strip_tags($inner[1])));
+
+                if (! in_array($text, $labels, true)) {
+                    return $anchor;
+                }
+
+                return (string) preg_replace(
+                    '/href="(?:\/en\/register(?:\.html)?|#offline)"/',
+                    'href="/en/create-subscription"',
+                    $anchor,
+                    1,
+                );
+            },
+            $html,
+        ) ?? $html;
+    }
+
+    /**
      * The blog index. When any active posts exist, the captured index is
      * kept as the template and its articles grid is replaced with cards
-     * for the database posts. Otherwise the captured index is returned
+     * for the database posts. When posts exist but none are active, the
+     * grid renders empty. Otherwise the captured index is returned
      * exactly as it is.
      */
     protected function renderIndex(mixed $posts, ?Page $indexPage): Response
     {
-        $file = public_path('cms/en/'.self::PAGES['index.html']);
+        $file = resource_path('captured/cms/en/'.self::PAGES['index.html']);
         abort_unless(is_file($file), 404);
 
         $html = file_get_contents($file);
         $html = $this->normalizeLinks($html);
+        $html = $this->fixSpeculationRules($html);
+        $html = $this->replaceShareSubscriptionLinks($html);
 
         if ($indexPage !== null) {
             $html = $this->replaceTitleTag($html, (string) $indexPage->title);
@@ -100,11 +153,13 @@ class CmsPageController extends Controller
     protected function renderDbPage(Page $page, string $requested): Response
     {
         $template = self::PAGES[$requested] ?? self::GENERIC_TEMPLATE;
-        $file = public_path('cms/en/'.$template);
+        $file = resource_path('captured/cms/en/'.$template);
         abort_unless(is_file($file), 404);
 
         $html = file_get_contents($file);
         $html = $this->normalizeLinks($html);
+        $html = $this->fixSpeculationRules($html);
+        $html = $this->replaceShareSubscriptionLinks($html);
         $html = $this->replaceTitleTag($html, (string) $page->title);
         $html = preg_replace_callback(
             '/(<h1\b[^>]*>).*?(<\/h1>)/s',
@@ -179,6 +234,19 @@ class CmsPageController extends Controller
         return $html;
     }
 
+    /**
+     * Repair the speculation rules JSON in the captured CMS templates.
+     * Every template carries the same broken selector string: a literal
+     * line break inside ".no-prefetch,\n.no-prefetch a", which is not
+     * valid JSON, so the browser rejects the whole prefetch rules block
+     * ("Line: 2, column: 412, Syntax error"). A comma plus a space is
+     * the same selector list, so the break is replaced with a space.
+     */
+    protected function fixSpeculationRules(string $html): string
+    {
+        return preg_replace('/("\.no-prefetch,)\s*\n\s*/', '$1 ', $html) ?? $html;
+    }
+
     protected function normalizeLinks(string $html): string
     {
         return preg_replace_callback(
@@ -237,6 +305,41 @@ class CmsPageController extends Controller
             return Page::active()->where('type', 'post')->get();
         } catch (\Throwable) {
             return collect();
+        }
+    }
+
+    /**
+     * True when a row exists for a slug, active or not. A deactivated
+     * page hides instead of showing its captured file.
+     */
+    protected function hasPageRow(string $slug): bool
+    {
+        if (! $this->pagesReady()) {
+            return false;
+        }
+
+        try {
+            return Page::where('slug', $slug)->exists();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * True when at least one post row exists, active or not. The blog
+     * index renders an empty grid when posts exist but none are active,
+     * and keeps the captured index only when no post was ever seeded.
+     */
+    protected function hasPostRows(): bool
+    {
+        if (! $this->pagesReady()) {
+            return false;
+        }
+
+        try {
+            return Page::where('type', 'post')->exists();
+        } catch (\Throwable) {
+            return false;
         }
     }
 

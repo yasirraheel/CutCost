@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RendersBrandDetail;
+use App\Http\Controllers\Concerns\RendersSiteChrome;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Country;
+use App\Models\Currency;
 use App\Models\Faq;
 use App\Models\Feature;
 use App\Models\FooterLinkGroup;
@@ -22,10 +24,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class CapturedPageController extends Controller
 {
     use RendersBrandDetail;
+    use RendersSiteChrome;
 
     /**
      * Pages that came from the supplied static capture and are now protected
@@ -103,6 +107,16 @@ class CapturedPageController extends Controller
         );
 
         $return = $request->query('return');
+        if (! is_string($return) || ! str_starts_with($return, '/en/')) {
+            $intended = session('url.intended');
+            if (is_string($intended) && $intended !== '') {
+                $intendedPath = parse_url($intended, PHP_URL_PATH) ?? '';
+                $intendedQuery = parse_url($intended, PHP_URL_QUERY) ?? '';
+                if (is_string($intendedPath) && str_starts_with($intendedPath, '/en/')) {
+                    $return = $intendedQuery !== '' ? $intendedPath.'?'.$intendedQuery : $intendedPath;
+                }
+            }
+        }
         if (is_string($return) && str_starts_with($return, '/en/')) {
             $hiddenReturn = '<input type="hidden" name="return" value="'.e($return).'">';
             $html = preg_replace(
@@ -134,6 +148,7 @@ class CapturedPageController extends Controller
             ) ?? $html;
         }
 
+        $html = $this->applySiteChrome($html, $page);
         $html = $this->normalizePageLinks($html);
 
         return response($html)
@@ -198,12 +213,6 @@ class CapturedPageController extends Controller
      */
     private const CATALOGUE_ARROW_SVG = '<svg width="16" height="14" viewBox="0 0 16 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 11.586C8.60954 11.9765 8.60953 12.6096 9 13C9.39046 13.3905 10.0235 13.3905 10.414 13L15.7069 7.70714C16.0974 7.31661 16.0974 6.68345 15.7069 6.29292L10.414 1.00003C10.0235 0.609564 9.39047 0.609564 9 1.00003C8.60953 1.39049 8.60954 2.02356 9 2.41403L12.586 6.00003H1C0.447715 6.00003 0 6.44774 0 7.00003C0 7.55231 0.447715 8.00003 1 8.00003H12.586L9 11.586Z" fill="currentColor"/></svg>';
 
-    /** @var bool|null */
-    protected $dynamicReady = null;
-
-    /** @var array<string, string|null>|null */
-    protected $dynamicSettings = null;
-
     /**
      * Render the brand detail page for any active brand, using the Amazon
      * capture as the template. Unknown or inactive slugs get a 404.
@@ -237,13 +246,75 @@ class CapturedPageController extends Controller
     }
 
     /**
+     * The captured site header, taken from the homepage template so the
+     * wizard layout renders the exact same markup as the captured
+     * pages, with the same authenticated navigation and the same shared
+     * chrome replacements. Empty when the markup cannot be extracted,
+     * so the layout can keep its own header as a fallback.
+     */
+    public function siteHeaderHtml(): string
+    {
+        try {
+            $html = $this->readPage('en/index.html');
+
+            if (! preg_match('/<nav\b[^>]*class="[^"]*sharesub-navbar[^"]*"[^>]*>.*?<\/nav>/s', $html, $match)) {
+                return '';
+            }
+
+            $nav = $match[0];
+            $nav = $this->applyAuthenticatedNavigation($nav, 'en/index.html');
+            $nav = $this->applyAuthenticatedUserData($nav);
+            $nav = $this->applySiteChrome($nav, 'en/index.html');
+            $nav = $this->normalizePageLinks($nav);
+
+            return $nav;
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    /**
+     * The captured site footer, taken from the homepage template so the
+     * wizard layout renders the exact same markup as the captured
+     * pages, with the same shared chrome replacements. The hidden
+     * logout form is appended for signed in users, matching the
+     * captured pages. Empty when the markup cannot be extracted.
+     */
+    public function siteFooterHtml(): string
+    {
+        try {
+            $html = $this->readPage('en/index.html');
+
+            if (! preg_match('/<footer\b[^>]*>.*?<\/footer>/s', $html, $match)) {
+                return '';
+            }
+
+            $footer = $match[0];
+            $footer = $this->applySiteChrome($footer, 'en/index.html');
+            $footer = $this->normalizePageLinks($footer);
+
+            if (Auth::check() && ! str_contains($footer, 'id="logout-form"')) {
+                $footer .= '<form id="logout-form" action="/en/logout" method="POST" style="display:none;">'
+                    .'<input type="hidden" name="_token" value="'.csrf_token().'">'
+                    .'</form>';
+            }
+
+            return $footer;
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    /**
      * Replace captured homepage, catalogue, house and brand detail markup
      * with database content. Only the four public pages listed here are
-     * ever altered, so admin dashboard pages are untouched. Every section
-     * keeps the captured HTML when the database has no active records for
-     * it, and every setting keeps its captured piece when its key is
-     * missing. A database error never breaks a public page: the captured
-     * HTML is returned unchanged.
+     * ever altered, so admin dashboard pages are untouched. A section
+     * keeps the captured HTML only when its table has no rows at all
+     * (never seeded). When rows exist but none are active, the section
+     * renders empty instead, so deactivated content never comes back
+     * as captured HTML. Every setting keeps its captured piece when
+     * its key is missing. A database error never breaks a public page:
+     * the captured HTML is returned unchanged.
      */
     protected function applyDynamicContent(string $html, string $page): string
     {
@@ -262,7 +333,6 @@ class CapturedPageController extends Controller
             $html = $this->replaceSearchPlaceholder($html);
             $html = $this->replaceCategoryPills($html);
             $html = $this->replaceFeatures($html);
-            $html = $this->replaceFooterLinks($html);
 
             if ($page === 'en/index.html') {
                 $html = $this->replaceHeroCarousel($html);
@@ -325,6 +395,7 @@ class CapturedPageController extends Controller
         return $this->dynamicReady;
     }
 
+
     protected function findActiveBrand(string $slug): mixed
     {
         if (! $this->dynamicContentReady()) {
@@ -338,63 +409,7 @@ class CapturedPageController extends Controller
         }
     }
 
-    protected function dynamicSettings(): array
-    {
-        if ($this->dynamicSettings !== null) {
-            return $this->dynamicSettings;
-        }
 
-        $keys = [
-            'hero_highlight', 'hero_text', 'hero_underline', 'hero_search_placeholder',
-            'share_subtitle', 'share_title_html', 'share_card_title', 'share_card_text',
-            'share_card_button_label', 'subscribe_card_title', 'subscribe_card_text',
-            'subscribe_card_button_label', 'share_content_html', 'footer_note',
-            'features_title',
-            'cta1_title', 'cta1_text', 'cta1_button_label',
-            'cta2_title', 'cta2_text', 'cta2_button_label',
-            'hero_rating_line', 'hero_create_account_label',
-            'testimonials_heading', 'testimonials_subheading',
-            'faq_section_title', 'press_section_title', 'features_read_more_label',
-            'catalogue_see_all_label', 'catalogue_services_count', 'house_title_prefix',
-            'footer_tagline', 'footer_copyright',
-            'footer_social_tiktok', 'footer_social_youtube', 'footer_social_linkedin',
-            'footer_social_instagram', 'footer_social_facebook', 'footer_social_x',
-            'nav_share_label', 'nav_subscriptions_label', 'nav_blog_label',
-            'nav_register_label', 'nav_login_label', 'nav_menu_label',
-            'nav_propose_label', 'nav_browse_label', 'nav_help_label',
-            'locales_json', 'default_locale', 'fallback_locale',
-            'seo_home_title', 'seo_home_description',
-            'seo_catalogue_title', 'seo_catalogue_description', 'seo_house_description',
-            'jsonld_app_name', 'jsonld_rating_value', 'jsonld_rating_count',
-            'calculator_avg_yearly_savings', 'calculator_default_brand_slug',
-            'how_title', 'how_section_title', 'how_share_label', 'how_seat_label',
-            'dashboard_cta_title',
-            'dashboard_checklist_1_title', 'dashboard_checklist_1_text',
-            'dashboard_checklist_2_title', 'dashboard_checklist_2_text',
-            'dashboard_checklist_3_title', 'dashboard_checklist_3_text',
-            'shared_empty_text', 'joined_empty_text',
-            'waiting_help_1_title', 'waiting_help_1_text',
-            'waiting_help_2_title', 'waiting_help_2_text',
-            'waiting_help_3_title', 'waiting_help_3_text',
-            'wallet_policy_1', 'wallet_policy_2',
-            'chat_empty_title', 'chat_empty_text',
-        ];
-
-        try {
-            $this->dynamicSettings = SiteSetting::whereIn('key', $keys)->pluck('value', 'key')->all();
-        } catch (\Throwable) {
-            $this->dynamicSettings = [];
-        }
-
-        return $this->dynamicSettings;
-    }
-
-    protected function dynamicSetting(string $key): ?string
-    {
-        $value = $this->dynamicSettings()[$key] ?? null;
-
-        return $value === null || $value === '' ? null : (string) $value;
-    }
 
     protected function activeCategories(): mixed
     {
@@ -444,12 +459,59 @@ class CapturedPageController extends Controller
 
     protected function formatBrandPrice(mixed $brand): string
     {
-        return $this->formatPriceAmount((float) $brand->price, $brand->currency_symbol ?? null);
+        return $this->formatPriceAmount((float) $brand->price, $this->brandCurrencySymbol($brand));
     }
 
     protected function formatOfferPrice(mixed $offer, mixed $brand): string
     {
-        return $this->formatPriceAmount((float) $offer->price, $brand->currency_symbol ?? null);
+        return $this->formatPriceAmount((float) $offer->price, $this->brandCurrencySymbol($brand, $offer->currency ?? null));
+    }
+
+    /**
+     * Price symbol for a brand: the currencies table by currency code
+     * first, so changing a currency's symbol in admin changes every
+     * rendered price; the stored brand symbol is only a fallback for a
+     * code with no currency row.
+     */
+    protected function brandCurrencySymbol(mixed $brand, ?string $code = null): ?string
+    {
+        return Currency::symbolFor($code ?? $brand->currency ?? null)
+            ?? Currency::symbolFor($brand->currency ?? null)
+            ?? ($brand->currency_symbol ?? null);
+    }
+
+    /**
+     * Replace a captured price token (any currency symbol from the
+     * currencies table followed by an amount and "/month") in captured
+     * copy with the computed price. The symbol alternation comes from
+     * the table, so no currency literal is needed and the replacement
+     * still matches the captured copy after an admin changes a symbol.
+     */
+    protected function replaceCapturedPrice(string $content, string $headerPrice): string
+    {
+        try {
+            $symbols = Currency::query()->pluck('symbol')->all();
+        } catch (Throwable) {
+            $symbols = [];
+        }
+
+        $symbols = array_values(array_unique(array_filter(
+            array_map(static fn ($symbol): string => (string) $symbol, $symbols),
+            static fn (string $symbol): bool => $symbol !== '',
+        )));
+
+        if ($symbols === []) {
+            return $content;
+        }
+
+        usort($symbols, static fn (string $a, string $b): int => mb_strlen($b) <=> mb_strlen($a));
+        $alternation = implode('|', array_map(static fn (string $symbol): string => preg_quote($symbol, '/'), $symbols));
+
+        return preg_replace_callback(
+            '/(?:'.$alternation.')\s?\d+(?:\.\d+)?\/month/u',
+            static fn (): string => $headerPrice,
+            $content,
+        ) ?? $content;
     }
 
     protected function formatPriceAmount(float $amount, ?string $symbol): string
@@ -558,7 +620,8 @@ class CapturedPageController extends Controller
      * template id, falling back to the first featured brand, and the
      * average yearly savings comes from the
      * calculator_avg_yearly_savings setting. The captured JSON is kept
-     * when the templates table is empty or missing.
+     * only when the templates table has no rows at all. When templates
+     * exist but none are active, the brands prop renders empty.
      */
     protected function replaceSavingCalculator(string $html): string
     {
@@ -574,7 +637,9 @@ class CapturedPageController extends Controller
             $brands = $this->calculatorBrands();
 
             if ($brands->isEmpty()) {
-                return $html;
+                return $this->tableHasRows('templates')
+                    ? $this->emptyCalculatorBrands($html)
+                    : $html;
             }
 
             $payload = [];
@@ -589,7 +654,9 @@ class CapturedPageController extends Controller
             }
 
             if ($payload === []) {
-                return $html;
+                return $this->tableHasRows('templates')
+                    ? $this->emptyCalculatorBrands($html)
+                    : $html;
             }
 
             $json = json_encode($payload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
@@ -634,6 +701,21 @@ class CapturedPageController extends Controller
     }
 
     /**
+     * Render the saving calculator with no brands. The Vue component
+     * picks no default brand when the list is empty, so a stale
+     * default brand prop is harmless and is left as captured.
+     */
+    protected function emptyCalculatorBrands(string $html): string
+    {
+        return preg_replace_callback(
+            '/:brands=\'[^\']*\'/',
+            static fn (array $matches): string => ':brands=\'[]\'',
+            $html,
+            1,
+        ) ?? $html;
+    }
+
+    /**
      * Active brands that have at least one active template, each with
      * its lowest price template attached.
      */
@@ -664,6 +746,10 @@ class CapturedPageController extends Controller
         $brandUrl = '/en/brand/'.(string) $brand->slug.'?template='.(string) $template->slug;
         $createUrl = '/en/create-subscription?template='.(string) $template->slug.'&country=united-kingdom';
         $retail = $template->retail_price !== null ? number_format((float) $template->retail_price, 2, '.', '') : null;
+        // The calculator's price row currency comes from the currencies
+        // table (the template currency, falling back to the default row),
+        // never a hardcoded numeric id.
+        $currencyId = Currency::isoNumericForPayload($template->currency);
 
         return [
             'id' => (int) $brand->id,
@@ -676,6 +762,13 @@ class CapturedPageController extends Controller
                 'seats' => $template->seats !== null ? (int) $template->seats : null,
                 'shareable_seats' => $template->shareable_seats !== null ? (int) $template->shareable_seats : null,
                 'available_seats' => $template->available_seats !== null ? (int) $template->available_seats : null,
+                // The Vue calculator reads these three fields: frequency
+                // picks the period label, cost_sharing feeds the share
+                // method, credentials_type drives the credentials step.
+                // Frequency defaults to 2, matching the captured data.
+                'cost_sharing' => (int) ($template->cost_sharing ?? 1),
+                'credentials_type' => (int) ($template->credentials_type ?? 0),
+                'frequency' => $template->frequency !== null ? (int) $template->frequency : 2,
                 'create_url' => $createUrl,
                 'listing_url' => $brandUrl,
                 'current_country_price_with_fees' => (float) $template->price_with_fees,
@@ -691,7 +784,7 @@ class CapturedPageController extends Controller
                     'country_id' => 237,
                     'price' => $retail,
                     'retail_price' => $retail,
-                    'currency_id' => 826,
+                    'currency_id' => $currencyId,
                     'fee_boost' => null,
                     'seats' => null,
                     'shareable_seats' => null,
@@ -809,7 +902,7 @@ class CapturedPageController extends Controller
 
         $categories = $this->activeCategories();
 
-        if ($categories->isEmpty()) {
+        if ($categories->isEmpty() && ! $this->tableHasRows('categories')) {
             return $html;
         }
 
@@ -830,7 +923,7 @@ class CapturedPageController extends Controller
     {
         $brands = $this->featuredBrands();
 
-        if ($brands->isEmpty()) {
+        if ($brands->isEmpty() && ! $this->tableHasRows('brands')) {
             return $html;
         }
 
@@ -859,7 +952,7 @@ class CapturedPageController extends Controller
             return $html;
         }
 
-        if ($items->isEmpty()) {
+        if ($items->isEmpty() && ! $this->tableHasRows('press_items')) {
             return $html;
         }
 
@@ -899,7 +992,7 @@ class CapturedPageController extends Controller
             return $html;
         }
 
-        if ($features->isEmpty()) {
+        if ($features->isEmpty() && ! $this->tableHasRows('features')) {
             return $html;
         }
 
@@ -955,7 +1048,7 @@ class CapturedPageController extends Controller
             return $html;
         }
 
-        if ($faqs->isEmpty()) {
+        if ($faqs->isEmpty() && ! $this->tableHasRows('faqs')) {
             return $html;
         }
 
@@ -990,7 +1083,7 @@ class CapturedPageController extends Controller
             return $html;
         }
 
-        if ($testimonials->isEmpty()) {
+        if ($testimonials->isEmpty() && ! $this->tableHasRows('testimonials')) {
             return $html;
         }
 
@@ -1130,23 +1223,34 @@ class CapturedPageController extends Controller
         $original = $html;
 
         try {
-            $html = $this->replaceNavLabels($html);
-            $html = $this->replaceFooterTagline($html);
-            $html = $this->replaceFooterCopyright($html);
-            $html = $this->replaceFooterSocial($html);
-            $html = $this->replaceLocalesDropdown($html, $page);
-            $html = $this->replaceDefaultLocale($html);
-            $html = $this->replaceSeoMeta($html, $page);
+            $html = $this->applySiteChrome($html, $page);
             $html = $this->replaceJsonLd($html);
             $html = $this->replaceCatalogueCount($html);
             $html = $this->replaceHeroCountries($html);
             $html = $this->replaceBrandFilterSelect($html);
             $html = $this->applyDashboardCopy($html, $page);
+            $html = $this->hideInputArrowControls($html);
         } catch (\Throwable) {
             return $original;
         }
 
         return $html;
+    }
+
+    /**
+     * Hide up and down arrow controls on every captured page: number
+     * input spinners, and the arrow buttons on native scrollbars (which
+     * show on textareas in some browsers). The replacement scrollbars
+     * are thin and button free. Injected as one small style block
+     * before </head> so captured pages keep their own markup untouched
+     * and app.css stays unedited. Select dropdown arrows are not
+     * touched, and the textarea resize grip is left alone.
+     */
+    protected function hideInputArrowControls(string $html): string
+    {
+        $style = '<style>input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;display:none;margin:0}input[type=number]{-moz-appearance:textfield;appearance:textfield}::-webkit-scrollbar-button{display:none;width:0;height:0}::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,.25);border-radius:4px}*{scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.25) transparent}</style>';
+
+        return preg_replace('/<\/head>/i', $style.'</head>', $html, 1) ?? $html;
     }
 
     /**
@@ -1162,240 +1266,21 @@ class CapturedPageController extends Controller
             return $escaped;
         }
 
-        return str_replace($needle, '<'.$tag.'>'.$needle.'</'.$tag.'>', $escaped, 1);
+        return preg_replace('/'.preg_quote($needle, '/').'/', '<'.$tag.'>$0</'.$tag.'>', $escaped, 1) ?? $escaped;
     }
 
-    protected function replaceNavLabels(string $html): string
-    {
-        $labels = [
-            'nav_share_label' => '/(<a class="btn-sharesub green" href="\/en\/register\.html">)[^<]*(<\/a>)/',
-            'nav_subscriptions_label' => '/(<a class="p1-semibold lg:p2-regular" href="\/en\/subscriptions\.html">)[^<]*(<\/a>)/',
-            'nav_blog_label' => '/(<a class="p1-semibold lg:p2-regular" href="\/cms\/en\/index\.html">)[^<]*(<\/a>)/',
-            'nav_register_label' => '/(<a class="p1-semibold lg:p2-regular" href="\/en\/register\.html">)[^<]*(<\/a>)/',
-            'nav_login_label' => '/(<a class="p1-semibold lg:p2-regular" href="\/en\/userlogin\.html">)[^<]*(<\/a>)/',
-            'nav_propose_label' => '/(<a href="\/en\/register\.html" class="btn btn-sharesub green">)[^<]*(<\/a>)/',
-            'nav_browse_label' => '/(<a href="\/en\/subscriptions\.html" class="btn btn-sharesub blue">)[^<]*(<\/a>)/',
-            'nav_help_label' => '/(<a href="#offline" target="_blank">)[^<]*(<\/a>)/',
-        ];
 
-        foreach ($labels as $key => $pattern) {
-            $label = $this->dynamicSetting($key);
-            if ($label === null) {
-                continue;
-            }
-            $html = preg_replace_callback(
-                $pattern,
-                static fn (array $matches): string => $matches[1].e($label).$matches[2],
-                $html,
-                1,
-            ) ?? $html;
-        }
 
-        $menu = $this->dynamicSetting('nav_menu_label');
-        if ($menu !== null) {
-            $html = preg_replace_callback(
-                '/(<button class="navbar-toggler[^>]*>)\s*[^<\n]+(\s*<img)/',
-                static fn (array $matches): string => $matches[1]."\n        ".e($menu).$matches[2],
-                $html,
-                1,
-            ) ?? $html;
-        }
 
-        return $html;
-    }
 
-    protected function replaceFooterTagline(string $html): string
-    {
-        $tagline = $this->dynamicSetting('footer_tagline');
 
-        if ($tagline === null) {
-            return $html;
-        }
 
-        $rendered = str_replace('{heart}', '❤️', $tagline);
-
-        return preg_replace_callback(
-            '/(<div class="mb-4 col-12">)Made with[^<]*(<\/div>)/',
-            static fn (array $matches): string => $matches[1].e($rendered).$matches[2],
-            $html,
-            1,
-        ) ?? $html;
-    }
-
-    protected function replaceFooterCopyright(string $html): string
-    {
-        $copyright = $this->dynamicSetting('footer_copyright');
-
-        if ($copyright === null) {
-            return $html;
-        }
-
-        return preg_replace_callback(
-            '/(<div class="bottom">\s*<div class="container-fluid">\s*<div>)[^<]*(<\/div>)/',
-            static fn (array $matches): string => $matches[1].e($copyright).$matches[2],
-            $html,
-            1,
-        ) ?? $html;
-    }
-
-    /**
-     * Footer social icons. The captured index footer social div is empty
-     * and the icons in the other pages carry no link, so nothing renders
-     * until an admin sets a URL. Icon markup is the captured one from
-     * subscriptions.html, with the span swapped for a link.
-     */
-    protected function replaceFooterSocial(string $html): string
-    {
-        if (! str_contains($html, 'footer-social')) {
-            return $html;
-        }
-
-        $networks = [
-            'footer_social_tiktok' => ['tiktok', 'Tiktok'],
-            'footer_social_youtube' => ['youtube', 'YouTube'],
-            'footer_social_linkedin' => ['linkedin', 'Linked In'],
-            'footer_social_instagram' => ['instagram', 'Instagram'],
-            'footer_social_facebook' => ['facebook', 'Facebook'],
-            'footer_social_x' => ['x', 'X'],
-        ];
-
-        $links = '';
-        foreach ($networks as $key => [$file, $alt]) {
-            $url = $this->dynamicSetting($key);
-            if ($url === null) {
-                continue;
-            }
-            $links .= '<a href="'.e($url).'" target="_blank" rel="noopener" class="cursor-pointer">'."\n"
-                .'<img src="/img/social/'.$file.'.svg" alt="'.e($alt).'">'."\n"
-                .'</a>'."\n";
-        }
-
-        if ($links === '') {
-            return $html;
-        }
-
-        return preg_replace_callback(
-            '/(<div class="mb-4 col-12 footer-social d-flex align-items-center">).*?(<\/div>)/s',
-            static fn (array $matches): string => $matches[1]."\n".$links.$matches[2],
-            $html,
-            1,
-        ) ?? $html;
-    }
-
-    protected function replaceLocalesDropdown(string $html, string $page): string
-    {
-        $json = $this->dynamicSetting('locales_json');
-
-        if ($json === null) {
-            return $html;
-        }
-
-        $locales = json_decode($json, true);
-        if (! is_array($locales) || $locales === []) {
-            return $html;
-        }
-
-        $currentHref = [
-            'en/index.html' => '/en/index.html',
-            'en/subscriptions.html' => '/en/subscriptions.html',
-            'en/subscriptions/house.html' => '/en/subscriptions/house.html',
-            'en/brand/amazon.html' => '/en/brand/amazon.html',
-        ][$page] ?? null;
-
-        $items = '';
-        foreach ($locales as $locale) {
-            $code = (string) ($locale['code'] ?? '');
-            $label = (string) ($locale['label'] ?? '');
-            $url = (string) ($locale['url'] ?? '#offline');
-            if ($code === '' || $label === '') {
-                continue;
-            }
-            $current = $currentHref !== null && $url === $currentHref ? ' current' : '';
-            $items .= '<a class="dropdown-item'.$current.'" rel="alternate" href="'.e($url).'">'."\n"
-                .'<img src="/img/lang/'.e($code).'.svg" loading="lazy" alt="'.e($label.' flag').'" />'."\n"
-                .'<span>'.e($label).'</span>'."\n"
-                .'</a>'."\n";
-        }
-
-        if ($items === '') {
-            return $html;
-        }
-
-        return preg_replace_callback(
-            '/(<div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuLink">).*?(<\/div>\s*<\/div>)/s',
-            static fn (array $matches): string => $matches[1]."\n".$items.$matches[2],
-            $html,
-        ) ?? $html;
-    }
-
-    protected function replaceDefaultLocale(string $html): string
-    {
-        $default = $this->dynamicSetting('default_locale');
-        if ($default !== null) {
-            $html = preg_replace(
-                '/(window\.default_locale\s*=\s*")[^"]*(")/',
-                '$1'.e($default).'$2',
-                $html,
-                1,
-            ) ?? $html;
-        }
-
-        $fallback = $this->dynamicSetting('fallback_locale');
-        if ($fallback !== null) {
-            $html = preg_replace(
-                '/(window\.fallback_locale\s*=\s*")[^"]*(")/',
-                '$1'.e($fallback).'$2',
-                $html,
-                1,
-            ) ?? $html;
-        }
-
-        return $html;
-    }
-
-    protected function replaceSeoMeta(string $html, string $page): string
-    {
-        $mapping = [
-            'en/index.html' => ['seo_home_title', 'seo_home_description'],
-            'en/subscriptions.html' => ['seo_catalogue_title', 'seo_catalogue_description'],
-            'en/subscriptions/house.html' => [null, 'seo_house_description'],
-        ];
-
-        if (! isset($mapping[$page])) {
-            return $html;
-        }
-
-        [$titleKey, $descriptionKey] = $mapping[$page];
-
-        if ($titleKey !== null) {
-            $title = $this->dynamicSetting($titleKey);
-            if ($title !== null) {
-                $html = preg_replace_callback(
-                    '/(<title>)[^<]*(<\/title>)/',
-                    static fn (array $matches): string => $matches[1].e($title).$matches[2],
-                    $html,
-                    1,
-                ) ?? $html;
-            }
-        }
-
-        $description = $this->dynamicSetting($descriptionKey);
-        if ($description !== null) {
-            $html = preg_replace_callback(
-                '/(<meta name="description" content=")[^"]*(")/',
-                static fn (array $matches): string => $matches[1].e($description).$matches[2],
-                $html,
-                1,
-            ) ?? $html;
-        }
-
-        return $html;
-    }
 
     /**
      * Regenerate the FAQPage JSON-LD from the faqs table and render the
-     * SoftwareApplication name and rating from settings. Both blocks
-     * keep the captured markup when the database has nothing to render.
+     * SoftwareApplication name and rating from settings. The FAQPage
+     * block is dropped when faqs exist but none are active, and kept
+     * only when the faqs table has no rows at all.
      */
     protected function replaceJsonLd(string $html): string
     {
@@ -1435,6 +1320,15 @@ class CapturedPageController extends Controller
                         1,
                     ) ?? $html;
                 }
+            } elseif ($this->tableHasRows('faqs')) {
+                // Rows exist but none are active: drop the captured
+                // FAQPage block instead of showing its questions.
+                $html = preg_replace(
+                    '/<script type="application\/ld\+json">\s*\{.*?"@type":\s*"FAQPage".*?<\/script>/s',
+                    '',
+                    $html,
+                    1,
+                ) ?? $html;
             }
         }
 
@@ -1525,8 +1419,14 @@ class CapturedPageController extends Controller
         $titles = [$this->dynamicSetting('cta1_title'), $this->dynamicSetting('cta2_title')];
         $texts = [$this->dynamicSetting('cta1_text'), $this->dynamicSetting('cta2_text')];
         $buttons = [$this->dynamicSetting('cta1_button_label'), $this->dynamicSetting('cta2_button_label')];
+        // The "per year" saving phrase is composed from the default
+        // currency symbol (currencies table) and the average yearly
+        // savings amount setting (seeded 405 from the capture's
+        // :avg-yearly-savings), never from a hardcoded price string.
+        $savingsPhrase = (Currency::defaultSymbol() ?? '')
+            .($this->calculatorSetting('calculator_avg_yearly_savings') ?? '405').' per year';
         $wraps = [
-            ['Get the most out of' => 'span', '£405 per year' => 'u'],
+            ['Get the most out of' => 'span', $savingsPhrase => 'u'],
             ['started' => 'span'],
         ];
 
@@ -1571,8 +1471,13 @@ class CapturedPageController extends Controller
 
                 if ($buttons[$index] !== null) {
                     $label = e($buttons[$index]);
+                    // The href is matched loosely on purpose: the share
+                    // link step runs before this method and rewrites a
+                    // share call to action href from #offline to the
+                    // wizard, so requiring #offline here would leave the
+                    // button label unreplaced on exactly those buttons.
                     $section = preg_replace_callback(
-                        '/(<a href="#offline" class="btn-sharesub green big"[^>]*>.*?<img[^>]*>)\s*[^<]+(<\/a>)/s',
+                        '/(<a href="[^"]*" class="btn-sharesub green big"[^>]*>.*?<img[^>]*>)\s*[^<]+(<\/a>)/s',
                         static fn (array $inner): string => $inner[1]."\n                    ".$label.$inner[2],
                         $section,
                         1,
@@ -1697,6 +1602,7 @@ class CapturedPageController extends Controller
 
             $shareSteps = HowItWorksStep::where('is_active', true)->where('audience', 'share')->orderBy('sort_order')->orderBy('id')->get();
             $seatSteps = HowItWorksStep::where('is_active', true)->where('audience', 'seat')->orderBy('sort_order')->orderBy('id')->get();
+            $stepsSeeded = $this->tableHasRows('how_it_works_steps');
         } catch (\Throwable) {
             return $html;
         }
@@ -1743,11 +1649,11 @@ class CapturedPageController extends Controller
             ) ?? $html;
         }
 
-        if ($shareSteps->isNotEmpty()) {
+        if ($shareSteps->isNotEmpty() || $stepsSeeded) {
             $html = $this->replaceHowItWorksSet($html, 'propose', $shareSteps);
         }
 
-        if ($seatSteps->isNotEmpty()) {
+        if ($seatSteps->isNotEmpty() || $stepsSeeded) {
             $html = $this->replaceHowItWorksSet($html, 'participate', $seatSteps);
         }
 
@@ -1842,7 +1748,32 @@ class CapturedPageController extends Controller
         $countries = $this->activeCountries();
 
         if ($countries->isEmpty()) {
-            return $html;
+            // No active country. Keep the captured props only when the
+            // table was never seeded; otherwise render an empty list
+            // with no current country.
+            if (! $this->tableHasRows('countries')) {
+                return $html;
+            }
+
+            return preg_replace_callback(
+                '/<hero-search\b[^>]*>/s',
+                static function (array $matches): string {
+                    $tag = preg_replace(
+                        '/:countries=\'[^\']*\'/',
+                        ':countries=\'[]\'',
+                        $matches[0],
+                        1,
+                    ) ?? $matches[0];
+
+                    return preg_replace(
+                        '/:current-country=\'[^\']*\'/',
+                        ':current-country=\'null\'',
+                        $tag,
+                        1,
+                    ) ?? $tag;
+                },
+                $html,
+            ) ?? $html;
         }
 
         $list = [];
@@ -1899,11 +1830,19 @@ class CapturedPageController extends Controller
     /** @return array<string, mixed> */
     protected function currentCountryPayload(mixed $country): array
     {
-        $currency = (string) ($country->currency ?: 'GBP');
-        $currencyPayload = ['code' => $currency, 'symbol' => $currency === 'GBP' ? '£' : $currency];
-        if ($currency === 'GBP') {
-            $currencyPayload['name'] = 'Pound Sterling';
-        }
+        $code = strtoupper((string) ($country->currency ?: Currency::defaultCode()));
+        $row = Currency::findByCode($code);
+        // The nested currency object and the currency_id /
+        // fallback_for_currency_id fields are what the capture's
+        // :current-country prop carries (826/826 for GB). Both ids are the
+        // currency row's ISO numeric id from the table.
+        $isoNumeric = $row?->iso_numeric;
+        $currencyPayload = [
+            'id' => $isoNumeric,
+            'code' => $code,
+            'symbol' => $row?->symbol ?? $code,
+            'name' => $row?->name,
+        ];
 
         return [
             'id' => (int) $country->id,
@@ -1912,6 +1851,8 @@ class CapturedPageController extends Controller
             'slug' => Str::slug((string) $country->name),
             'fee_flat' => number_format((float) $country->fee_flat, 3, '.', ''),
             'fee_percent' => number_format((float) $country->fee_percent, 3, '.', ''),
+            'currency_id' => $isoNumeric,
+            'fallback_for_currency_id' => $isoNumeric,
             'currency' => $currencyPayload,
             'postal_code_regex' => $country->postal_regex,
             'postal_code_example' => $country->postal_example,
@@ -1926,7 +1867,7 @@ class CapturedPageController extends Controller
 
         $countries = $this->activeCountries();
 
-        if ($countries->isEmpty()) {
+        if ($countries->isEmpty() && ! $this->tableHasRows('countries')) {
             return $html;
         }
 
@@ -1958,7 +1899,7 @@ class CapturedPageController extends Controller
 
         $countries = $this->activeCountries();
 
-        if ($countries->isEmpty()) {
+        if ($countries->isEmpty() && ! $this->tableHasRows('countries')) {
             return $html;
         }
 
@@ -2006,6 +1947,7 @@ class CapturedPageController extends Controller
         if ($page === 'en/dashboard.html') {
             $html = $this->replaceDashboardCta($html);
             $html = $this->replaceDashboardChecklist($html);
+            $html = $this->replaceDashboardProposeLink($html);
         } elseif ($page === 'en/my-shared-subscriptions.html') {
             $html = $this->replaceCreateSubscriptionLink($html);
             $html = $this->renderMySharedOffers($html);
@@ -2138,6 +2080,22 @@ class CapturedPageController extends Controller
     }
 
     /**
+     * Point the Propose a subscription button on the dashboard at the
+     * wizard instead of the registration page. The button is the only
+     * anchor on this page with this exact href and class, so no genuine
+     * register link is touched. The label text is left as rendered.
+     */
+    protected function replaceDashboardProposeLink(string $html): string
+    {
+        return preg_replace(
+            '/(<a href=")\/en\/register\.html(" class="btn btn-sharesub green">)/',
+            '$1/en/create-subscription$2',
+            $html,
+            1,
+        ) ?? $html;
+    }
+
+    /**
      * Point the Propose a subscription calls to action on the catalogue
      * page at the wizard instead of the registration page.
      */
@@ -2201,9 +2159,15 @@ class CapturedPageController extends Controller
             $brand = null;
         }
 
-        $symbol = $brand !== null ? (string) ($brand->currency_symbol ?? '') : '';
+        // The offer row price symbol comes from the currencies table by
+        // the offer (then brand) currency code; the stored brand symbol
+        // is only a fallback for a code with no currency row.
+        $symbol = Currency::symbolFor($offer->currency ?? $brand?->currency ?? null);
+        if ($symbol === null || $symbol === '') {
+            $symbol = $brand !== null ? (string) ($brand->currency_symbol ?? '') : '';
+        }
         if ($symbol === '') {
-            $symbol = strtoupper((string) ($offer->currency ?? 'GBP')) === 'EUR' ? '€' : '£';
+            $symbol = Currency::defaultSymbol() ?? '';
         }
 
         $frequency = [1 => '/ week', 2 => '/ month', 3 => '/ quarter', 4 => '/ year'][(int) ($offer->frequency ?? 2)] ?? '/ month';
@@ -2328,64 +2292,6 @@ class CapturedPageController extends Controller
         return $html;
     }
 
-    /**
-     * Footer link columns. The first two groups render in the middle
-     * column, each as a col-lg-6 block like the capture; any further
-     * groups render in the right hand column, like the captured Hot
-     * topics column. Groups with no active links still render their
-     * title, like Hot topics does in the capture.
-     */
-    protected function replaceFooterLinks(string $html): string
-    {
-        if (! str_contains($html, 'footer-links')) {
-            return $html;
-        }
-
-        try {
-            $groups = FooterLinkGroup::with(['footerLinks' => function ($query): void {
-                $query->where('is_active', true)->orderBy('sort_order')->orderBy('id');
-            }])->orderBy('sort_order')->orderBy('id')->get();
-        } catch (\Throwable) {
-            return $html;
-        }
-
-        if ($groups->isEmpty()) {
-            return $html;
-        }
-
-        $renderGroup = static function (mixed $group, bool $wrap): string {
-            $out = $wrap ? '<div class="col-12 col-lg-6 my-3">' : '';
-            $out .= '<div class="footer-link-title mb-4">'.e((string) $group->title).'</div>';
-            foreach ($group->footerLinks as $link) {
-                $out .= '<div class="footer-link mb-3"><a class="text-decoration-none" href="'.e((string) $link->url).'">'.e((string) $link->label).'</a></div>';
-            }
-
-            return $wrap ? $out.'</div>' : $out;
-        };
-
-        $middle = '';
-        $right = '';
-        foreach ($groups as $index => $group) {
-            if ($index < 2) {
-                $middle .= $renderGroup($group, true);
-            } else {
-                $right .= $renderGroup($group, false);
-            }
-        }
-
-        // One anchored pass from the middle column to the end of the
-        // footer links row. The first column (Made with...) shares the
-        // right hand column class, so the right column must not be
-        // matched on its own or the whole row gets wiped.
-        $rightColumn = '<div class="col-12 col-md-4 col-lg-3 my-3">'."\n".$right;
-
-        return preg_replace_callback(
-            '/(<div class="col-12 col-md-4 col-lg-6">\s*<div class="row">)(.*?)(<\/div>\s*<\/div>\s*<\/section>)/s',
-            static fn (array $matches): string => $matches[1]."\n".$middle."</div>\n                    </div>\n                    ".$rightColumn.$matches[3],
-            $html,
-            1,
-        ) ?? $html;
-    }
 
     protected function replaceCatalogueBlocks(string $html): string
     {
@@ -2399,10 +2305,11 @@ class CapturedPageController extends Controller
             return $html;
         }
 
+        $brandsSeeded = $this->tableHasRows('brands');
         $seen = [];
         $html = preg_replace_callback(
             '/<div class="category-card">\s*<h2 class="category-card-title">\s*(<svg.*?<\/svg>)?\s*<span>([^<]+)<\/span>\s*<\/h2>\s*<div class="category-card-wrapper">\s*<p class="category-card-description">.*?<\/p>\s*<ul class="category-card-items">.*?<\/ul>\s*<a href="[^"]*" class="btn btn-sharesub blue">See all<\/a>\s*<\/div>\s*<\/div>/s',
-            function (array $matches) use ($byName, &$seen): string {
+            function (array $matches) use ($byName, &$seen, $brandsSeeded): string {
                 $name = html_entity_decode(trim($matches[2]), ENT_QUOTES, 'UTF-8');
                 $key = strtolower($name);
                 $seen[$key] = true;
@@ -2418,7 +2325,11 @@ class CapturedPageController extends Controller
 
                 $brands = $this->activeBrandsForCategory((int) $category->id);
                 if ($brands->isEmpty()) {
-                    return $matches[0];
+                    // An active category with no active brands hides its
+                    // card instead of showing the captured brands. The
+                    // captured card stays only when no brand was ever
+                    // seeded.
+                    return $brandsSeeded ? '' : $matches[0];
                 }
 
                 $block = $matches[0];
@@ -2522,7 +2433,7 @@ class CapturedPageController extends Controller
         }
 
         try {
-            $category = Category::where('slug', 'house')->where('is_active', true)->first();
+            $category = Category::where('slug', 'house')->first();
         } catch (\Throwable) {
             return $html;
         }
@@ -2531,46 +2442,46 @@ class CapturedPageController extends Controller
             return $html;
         }
 
-        $brands = $this->activeBrandsForCategory((int) $category->id);
+        $brands = $category->is_active
+            ? $this->activeBrandsForCategory((int) $category->id)
+            : collect();
 
-        if ($brands->isEmpty()) {
-            return $html;
-        }
-
-        $housePrefix = $this->dynamicSetting('house_title_prefix') ?? 'Subscription sharing';
-        $html = preg_replace_callback(
-            '/(<h1 class="brand-header-title col-12"><span>)[^<]*(<\/span>)\s*[^<]+(<\/h1>)/',
-            static fn (array $matches): string => $matches[1].e($housePrefix).$matches[2].' '.e((string) $category->name).$matches[3],
-            $html,
-            1,
-        ) ?? $html;
-
-        if (! empty($category->description)) {
-            $houseDescription = e((string) $category->description);
+        if ($category->is_active) {
+            $housePrefix = $this->dynamicSetting('house_title_prefix') ?? 'Subscription sharing';
             $html = preg_replace_callback(
-                '/(<p class="brand-content-description">).*?(<\/p>)/s',
-                static fn (array $matches): string => $matches[1].$houseDescription.$matches[2],
+                '/(<h1 class="brand-header-title col-12"><span>)[^<]*(<\/span>)\s*[^<]+(<\/h1>)/',
+                static fn (array $matches): string => $matches[1].e($housePrefix).$matches[2].' '.e((string) $category->name).$matches[3],
+                $html,
+                1,
+            ) ?? $html;
+
+            if (! empty($category->description)) {
+                $houseDescription = e((string) $category->description);
+                $html = preg_replace_callback(
+                    '/(<p class="brand-content-description">).*?(<\/p>)/s',
+                    static fn (array $matches): string => $matches[1].$houseDescription.$matches[2],
+                    $html,
+                    1,
+                ) ?? $html;
+            }
+
+            if (! empty($category->icon_svg)) {
+                $icon = (string) $category->icon_svg;
+                $html = preg_replace_callback(
+                    '/(<h2 class="brand-content-title">\s*)<svg.*?<\/svg>/s',
+                    static fn (array $matches): string => $matches[1].$icon,
+                    $html,
+                    1,
+                ) ?? $html;
+            }
+
+            $html = preg_replace_callback(
+                '/(<h2 class="brand-content-title">.*?<\/svg>)\s*[^<]+(<\/h2>)/s',
+                static fn (array $matches): string => $matches[1].' '.e((string) $category->name).$matches[2],
                 $html,
                 1,
             ) ?? $html;
         }
-
-        if (! empty($category->icon_svg)) {
-            $icon = (string) $category->icon_svg;
-            $html = preg_replace_callback(
-                '/(<h2 class="brand-content-title">\s*)<svg.*?<\/svg>/s',
-                static fn (array $matches): string => $matches[1].$icon,
-                $html,
-                1,
-            ) ?? $html;
-        }
-
-        $html = preg_replace_callback(
-            '/(<h2 class="brand-content-title">.*?<\/svg>)\s*[^<]+(<\/h2>)/s',
-            static fn (array $matches): string => $matches[1].' '.e((string) $category->name).$matches[2],
-            $html,
-            1,
-        ) ?? $html;
 
         $cards = '';
         foreach ($brands as $brand) {
@@ -2590,9 +2501,10 @@ class CapturedPageController extends Controller
      * header, title and meta description are rewritten. When the brand
      * has active offers, the captured offer rows are replaced with
      * database rendered cards in the same markup, and the cheapest
-     * active offer price drives the header join price. When the brand
-     * has no active offers, the captured HTML is left untouched. A set
-     * brand tagline is rendered in the detail header.
+     * active offer price drives the header join price. When offers
+     * exist but none are active for the brand, the offers list renders
+     * empty. The captured rows stay only when the offers table has no
+     * rows at all. A set brand tagline is rendered in the detail header.
      */
     protected function applyBrandDetail(string $html, mixed $brand): string
     {
@@ -2625,9 +2537,12 @@ class CapturedPageController extends Controller
 
         $html = preg_replace_callback(
             '/(<meta name="description" content=")([^"]*)(")/',
-            static function (array $matches) use ($name, $headerPrice): string {
+            function (array $matches) use ($name, $headerPrice): string {
                 $content = str_replace('Amazon', $name, $matches[2]);
-                $content = str_replace('£1.85', $headerPrice, $content);
+                // The captured meta description carries the captured
+                // Amazon price token; replace it with this brand's
+                // computed header price.
+                $content = $this->replaceCapturedPrice($content, $headerPrice);
 
                 return $matches[1].e($content).$matches[3];
             },
@@ -2651,13 +2566,9 @@ class CapturedPageController extends Controller
             1,
         ) ?? $html;
 
-        if (! empty($brand->background)) {
-            $html = str_replace(
-                '<div class="model-header">',
-                '<div class="model-header" style="background: '.e((string) $brand->background).'">',
-                $html,
-            );
-        }
+        // The detail hero keeps its captured styling. The brand colour
+        // is only for homepage hero slides and brand card titles; it
+        // must never paint the detail hero.
 
         $icon = $this->brandIconHtml($brand);
         $html = preg_replace_callback(
@@ -2691,7 +2602,9 @@ class CapturedPageController extends Controller
         }
 
         if (! empty($brand->tagline) && (string) $brand->tagline !== (string) ($lead ?? '')) {
-            $tagline = (string) $brand->tagline;
+            // The tagline was seeded from the captured meta description,
+            // so it can carry the same captured price token.
+            $tagline = $this->replaceCapturedPrice((string) $brand->tagline, $headerPrice);
             $html = preg_replace_callback(
                 '/(<div class="model-header-lead"[^>]*>.*?<\/div>)/s',
                 static fn (array $matches): string => $matches[1]."\n".'<div class="model-header-tagline">'.e($tagline).'</div>',
@@ -2732,12 +2645,13 @@ class CapturedPageController extends Controller
 
     /**
      * Replace the captured offer rows inside #subscriptions-list with
-     * database rendered cards. The captured HTML is untouched when the
-     * brand has no active offers.
+     * database rendered cards. The list renders empty when offers
+     * exist but none are active for this brand. The captured rows stay
+     * only when the offers table has no rows at all.
      */
     protected function replaceOfferCards(string $html, mixed $offers, mixed $brand): string
     {
-        if ($offers->isEmpty()) {
+        if ($offers->isEmpty() && ! $this->tableHasRows('offers')) {
             return $html;
         }
 
@@ -2764,7 +2678,16 @@ class CapturedPageController extends Controller
     {
         $seller = trim((string) ($offer->seller_name ?? ''));
         $title = e((string) $offer->title);
-        $symbol = (string) ($brand->currency_symbol ?? '');
+        // The offer card price symbol comes from the currencies table by
+        // the offer (then brand) currency code; the stored brand symbol
+        // is only a fallback for a code with no currency row.
+        $symbol = Currency::symbolFor($offer->currency ?? $brand->currency ?? null);
+        if ($symbol === null || $symbol === '') {
+            $symbol = (string) ($brand->currency_symbol ?? '');
+        }
+        if ($symbol === '') {
+            $symbol = Currency::defaultSymbol() ?? '';
+        }
         $parts = explode('.', number_format((float) $offer->price, 2, '.', ''));
         $price = '<span class="join-action-header-price"><span class="t3-bold">'.e($symbol.$parts[0]).'</span>.'.$parts[1].'</span>';
         $initials = $this->sellerInitials($seller, (string) $brand->name);
@@ -3250,7 +3173,7 @@ class CapturedPageController extends Controller
 
         $shareButton = <<<'HTML'
 <li class="nav-item">
-    <a class="btn-sharesub green" href="/en/register.html">Share my subscription</a>
+    <a class="btn-sharesub green" href="/en/create-subscription">Share my subscription</a>
 </li>
 HTML;
         $authenticatedItems = $shareButton.$dashboardMatch[1];

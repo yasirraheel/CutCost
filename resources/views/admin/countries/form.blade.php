@@ -16,8 +16,12 @@
         <input class="input-sharesub" id="fee_percent" name="fee_percent" type="number" step="0.001" value="{{ old('fee_percent', $country->fee_percent ?? 0) }}">
     </div>
     <div class="col-12 col-md-6 form-group">
-        <label for="currency">Currency <span class="text-muted">(3 letters, for example GBP)</span></label>
-        <input class="input-sharesub" id="currency" name="currency" value="{{ old('currency', $country->currency ?? 'GBP') }}" maxlength="3">
+        <label for="currency">Currency</label>
+        <select class="input-sharesub" id="currency" name="currency">
+            @foreach ($currencies as $currencyOption)
+                <option value="{{ $currencyOption->code }}" @selected(old('currency', $country->currency) === $currencyOption->code)>{{ $currencyOption->code }} ({{ $currencyOption->symbol }}) {{ $currencyOption->name }}</option>
+            @endforeach
+        </select>
     </div>
     <div class="col-12 col-md-6 form-group">
         <label for="sort_order">Sort order</label>

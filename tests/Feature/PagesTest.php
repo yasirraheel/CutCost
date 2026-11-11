@@ -131,4 +131,36 @@ class PagesTest extends TestCase
         $this->assertDatabaseMissing('pages', ['slug' => 'test-page']);
         Storage::disk('public')->assertMissing($page->image_path);
     }
+
+    /**
+     * The Font Awesome 5.13.0 files the CMS pages reference must exist
+     * at the exact public paths the templates link to, otherwise the
+     * header chevrons, the back-to-top arrow and the footer social
+     * icons render as empty boxes. The feature test client has no
+     * static file server, so this asserts the files on disk (the live
+     * URLs returning 200 was verified with curl on the dev server);
+     * a missing file here is the same broken page in production.
+     *
+     * The font files themselves are embedded as base64 data URIs
+     * inside css/all.css (the GitHub snapshot push cannot carry binary
+     * files), so there are no webfont files on disk by design; the
+     * test asserts the embedded fonts instead.
+     */
+    public function test_font_awesome_files_exist_at_the_paths_cms_pages_reference(): void
+    {
+        $base = 'cms/wp-content/plugins/types/vendor/toolset/toolset-common/res/lib/font-awesome/';
+
+        foreach (['css/all.css', 'css/v4-shims.css'] as $file) {
+            $path = public_path($base.$file);
+            $this->assertFileExists($path, "Missing Font Awesome file: {$base}{$file}");
+            $this->assertGreaterThan(0, filesize($path), "Empty Font Awesome file: {$base}{$file}");
+        }
+
+        $css = file_get_contents(public_path($base.'css/all.css'));
+        $this->assertStringContainsString('Font Awesome 5 Free', $css);
+        $this->assertStringContainsString('5.13.0', $css);
+        $this->assertStringNotContainsString('../webfonts/', $css, 'all.css still references webfont files on disk');
+        $this->assertSame(3, substr_count($css, 'data:font/woff2;base64,'), 'Expected one embedded woff2 per family (brands, regular, solid)');
+        $this->assertSame(3, substr_count($css, 'data:font/woff;base64,'), 'Expected one embedded woff per family (brands, regular, solid)');
+    }
 }

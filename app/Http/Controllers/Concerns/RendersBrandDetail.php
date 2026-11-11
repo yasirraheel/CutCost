@@ -11,8 +11,10 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Database driven extras for the brand detail page, rendered from the
- * captured Amazon template in showBrand. Every section keeps the
- * captured HTML when the database has nothing for it, and every
+ * captured Amazon template in showBrand. A section keeps the captured
+ * HTML only when its table has no rows at all (never seeded). When
+ * rows exist but none are active, the section renders empty or hides,
+ * so deactivated content never comes back as captured HTML. Every
  * setting keeps its captured piece when its key is missing. A missing
  * table never breaks the page: the captured HTML is returned.
  */
@@ -168,7 +170,7 @@ trait RendersBrandDetail
             return $html;
         }
 
-        $price = $this->formatPriceAmount((float) $brand->full_price, $brand->currency_symbol ?? null);
+        $price = $this->formatPriceAmount((float) $brand->full_price, $this->brandCurrencySymbol($brand));
 
         return preg_replace_callback(
             '/(<div class="model-header-offer-card model-header-offer-card--create">.*?<strong>)([^<]*)(<small>\/ month<\/small><\/strong>)/s',
@@ -227,7 +229,7 @@ trait RendersBrandDetail
      * The reassurance slider, rendered from reassurance_items with the
      * exact captured markup. The captured first item names the brand,
      * so that name is swapped for the current brand when rendering.
-     * The captured slider is kept when the table is empty.
+     * The captured slider is kept only when the table is empty.
      */
     protected function renderBrandReassurance(string $html, mixed $brand): string
     {
@@ -241,7 +243,7 @@ trait RendersBrandDetail
             return $html;
         }
 
-        if ($items->isEmpty()) {
+        if ($items->isEmpty() && ! $this->tableHasRows('reassurance_items')) {
             return $html;
         }
 
@@ -270,24 +272,30 @@ trait RendersBrandDetail
     /**
      * The template filter tags in the sidebar, rendered from the
      * brand's active templates. The "All" tag stays first. The
-     * captured tags are kept when the brand has no templates.
+     * captured tags are kept only when the templates table has no rows
+     * at all; when templates exist but none are active for this brand,
+     * the tags render empty.
      */
     protected function renderBrandTemplateTags(string $html, mixed $brand): string
     {
         $templates = $this->activeTemplatesForBrand((int) $brand->id);
 
-        if ($templates->isEmpty()) {
+        if ($templates->isEmpty() && ! $this->tableHasRows('templates')) {
             return $html;
         }
 
-        $tags = '<a class="filter-tag active " href="'.e($this->brandUrl($brand)).'">'."\n"
-            .'<span>All</span>'."\n"
-            .'</a>'."\n";
+        $tags = '';
 
-        foreach ($templates as $template) {
-            $tags .= '<span class="cursor-pointer filter-tag">'."\n"
-                .'<span>'.e((string) $template->name).'</span>'."\n"
-                .'</span>'."\n";
+        if ($templates->isNotEmpty()) {
+            $tags = '<a class="filter-tag active " href="'.e($this->brandUrl($brand)).'">'."\n"
+                .'<span>All</span>'."\n"
+                .'</a>'."\n";
+
+            foreach ($templates as $template) {
+                $tags .= '<span class="cursor-pointer filter-tag">'."\n"
+                    .'<span>'.e((string) $template->name).'</span>'."\n"
+                    .'</span>'."\n";
+            }
         }
 
         return $this->brandDetailReplaceDivInner(
@@ -377,13 +385,14 @@ trait RendersBrandDetail
      * The browse sidebar: the category tags from the categories table,
      * with the brand's own category active, and the brand tags for the
      * brand's category from the brands table. The captured sidebar is
-     * kept when there are no categories to render from.
+     * kept only when the categories table has no rows at all, and the
+     * captured brand tags stay only when the brands table is empty.
      */
     protected function renderBrandCategorySidebar(string $html, mixed $brand): string
     {
         $categories = $this->activeCategories();
 
-        if ($categories->isEmpty()) {
+        if ($categories->isEmpty() && ! $this->tableHasRows('categories')) {
             return $html;
         }
 
@@ -411,7 +420,7 @@ trait RendersBrandDetail
 
         $categoryBrands = $this->activeBrandsForCategory((int) $brand->category_id);
 
-        if ($categoryBrands->isEmpty()) {
+        if ($categoryBrands->isEmpty() && ! $this->tableHasRows('brands')) {
             return $html;
         }
 
@@ -505,16 +514,27 @@ trait RendersBrandDetail
     /**
      * The before joining section, rendered from the brand's FAQs with
      * the title and intro from the brand_before_join settings. The
-     * captured section is kept when the brand has no FAQs. The
-     * captured first question names the brand, so that name is swapped
-     * for the current brand when rendering.
+     * captured section is kept only when the brand_faqs table has no
+     * rows at all; when FAQs exist but none are active for this brand,
+     * the section is hidden. The captured first question names the
+     * brand, so that name is swapped for the current brand when
+     * rendering.
      */
     protected function renderBrandFaqs(string $html, mixed $brand): string
     {
         $faqs = $this->activeBrandFaqsForBrand((int) $brand->id);
 
         if ($faqs->isEmpty()) {
-            return $html;
+            if (! $this->tableHasRows('brand_faqs')) {
+                return $html;
+            }
+
+            return preg_replace(
+                '/<section class="brand-before-join">.*?<\/section>/s',
+                '',
+                $html,
+                1,
+            ) ?? $html;
         }
 
         $name = (string) $brand->name;

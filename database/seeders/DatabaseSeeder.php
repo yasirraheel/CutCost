@@ -39,6 +39,7 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
+        $this->call(CurrenciesSeeder::class);
         $this->call(ContentSeeder::class);
         $this->call(TemplateSeeder::class);
         $this->call(ReassuranceSeeder::class);
