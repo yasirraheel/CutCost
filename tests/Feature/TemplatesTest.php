@@ -53,7 +53,7 @@ class TemplatesTest extends TestCase
         ];
     }
 
-    public function test_template_seeder_extracts_thirteen_matched_calculator_templates(): void
+    public function test_template_seeder_extracts_thirteen_calculator_templates_plus_eight_amazon_templates(): void
     {
         foreach ($this->heroBrands() as [$name, $slug]) {
             $this->makeBrand($name, $slug);
@@ -61,7 +61,7 @@ class TemplatesTest extends TestCase
 
         $this->seed(TemplateSeeder::class);
 
-        $this->assertSame(13, Template::count());
+        $this->assertSame(20, Template::count());
         $this->assertDatabaseHas('templates', ['slug' => 'nordpass', 'brand_id' => Brand::where('slug', 'nord-vpn')->firstOrFail()->id]);
         $this->assertDatabaseHas('templates', ['slug' => 'office-365-family', 'brand_id' => Brand::where('slug', 'microsoft')->firstOrFail()->id]);
         $this->assertDatabaseHas('templates', ['slug' => 'purevpn', 'brand_id' => Brand::where('slug', 'pure-vpn')->firstOrFail()->id]);
@@ -82,7 +82,74 @@ class TemplatesTest extends TestCase
         $this->assertStringNotContainsString("\u{2013}", (string) $netflix->helper_join);
 
         $this->seed(TemplateSeeder::class);
-        $this->assertSame(13, Template::count());
+        $this->assertSame(20, Template::count());
+    }
+
+    public function test_amazon_has_all_eight_captured_templates(): void
+    {
+        foreach ($this->heroBrands() as [$name, $slug]) {
+            $this->makeBrand($name, $slug);
+        }
+
+        $this->seed(TemplateSeeder::class);
+
+        $amazon = Brand::where('slug', 'amazon')->firstOrFail();
+        $templates = Template::where('brand_id', $amazon->id)->orderBy('sort_order')->orderBy('id')->get();
+
+        $this->assertSame(8, $templates->count());
+        $this->assertSame([
+            'Amazon Prime Delivery',
+            'Amazon Music Unlimited Family Plan',
+            'Amazon Prime Video - with ads',
+            'Audible',
+            'Amazon Prime Video - without Ads',
+            'Amazon Prime + Paramount Plus',
+            'Amazon Prime Video Pass Warner',
+            'Amazon Prime Video Pass Paramount Plus',
+        ], $templates->pluck('name')->all());
+
+        // name => [seats, shareable_seats, available_seats, credentials_type, retail_price]
+        $expected = [
+            'Amazon Prime Delivery' => [2, 2, 1, 5, 6.99],
+            'Amazon Music Unlimited Family Plan' => [6, 6, 5, 3, 17.99],
+            'Amazon Prime Video - with ads' => [3, 2, 2, 5, 8.99],
+            'Audible' => [10, 10, 9, 0, 7.99],
+            'Amazon Prime Video - without Ads' => [3, 2, 2, 0, 10.98],
+            'Amazon Prime + Paramount Plus' => [2, 1, 1, 2, 15.98],
+            'Amazon Prime Video Pass Warner' => [3, 3, 2, 5, 14.47],
+            'Amazon Prime Video Pass Paramount Plus' => [3, 3, 2, 5, 12.76],
+        ];
+
+        foreach ($templates as $template) {
+            [$seats, $shareable, $available, $credentialsType, $price] = $expected[$template->name];
+            $this->assertSame($seats, $template->seats);
+            $this->assertSame($shareable, $template->shareable_seats);
+            $this->assertSame($available, $template->available_seats);
+            $this->assertSame($credentialsType, $template->credentials_type);
+            $this->assertSame(2, $template->frequency);
+            $this->assertSame(1, $template->cost_sharing);
+            $this->assertSame($price, (float) $template->retail_price);
+            $this->assertSame('GBP', $template->currency);
+        }
+
+        // The calculator's shared seat price is untouched: the homepage
+        // calculator still shows Amazon from 1.85.
+        $this->assertSame(1.85, (float) $templates->firstWhere('slug', 'audible')->price_with_fees);
+
+        // The Prime Delivery helper text carries the tutorial link with
+        // a real apostrophe, not a leftover capture escape.
+        $helper = (string) $templates->firstWhere('slug', 'amazon-prime')->helper_create;
+        $this->assertStringContainsString(
+            'https://www.sharesub.com/cms/en/share-your-amazon-prime-account-with-a-loved-one/',
+            $helper
+        );
+        $this->assertStringContainsString("\u{2019}", $helper);
+        $this->assertStringNotContainsString('\u2019', $helper);
+
+        // Re-seeding changes nothing.
+        $this->seed(TemplateSeeder::class);
+        $this->assertSame(8, Template::where('brand_id', $amazon->id)->count());
+        $this->assertSame(20, Template::count());
     }
 
     public function test_homepage_calculator_uses_database_templates(): void

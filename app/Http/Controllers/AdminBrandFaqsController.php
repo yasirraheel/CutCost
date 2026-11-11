@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\RendersAdminShell;
 use App\Models\Brand;
 use App\Models\BrandFaq;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AdminBrandFaqsController extends Controller
 {
@@ -46,7 +47,7 @@ class AdminBrandFaqsController extends Controller
 
     public function update(Request $request, BrandFaq $brandFaq)
     {
-        $validated = $request->validate($this->rules());
+        $validated = $request->validate($this->rules($brandFaq));
 
         $brandFaq->fill($this->attributes($request, $validated));
         $brandFaq->save();
@@ -62,10 +63,18 @@ class AdminBrandFaqsController extends Controller
     }
 
     /** @return array<string, mixed> */
-    protected function rules(): array
+    protected function rules(?BrandFaq $faq = null): array
     {
+        // Dropdown options are the live brand ids, plus the FAQ's own
+        // stored brand when it is no longer listed, so an old row can
+        // still be opened and saved without silently resetting it.
+        $brandIds = Brand::orderBy('id')->pluck('id')->map(fn ($id) => (string) $id)->all();
+        if ($faq !== null && $faq->brand_id !== null) {
+            $brandIds[] = (string) $faq->brand_id;
+        }
+
         return [
-            'brand_id' => ['required', 'exists:brands,id'],
+            'brand_id' => ['required', Rule::in($brandIds)],
             'question' => ['required', 'string', 'max:255'],
             'answer' => ['required', 'string'],
             'sort_order' => ['nullable', 'integer'],

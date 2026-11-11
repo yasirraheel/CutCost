@@ -13,9 +13,14 @@
     </div>
     <div class="col-12 col-md-6 form-group">
         <label for="audience">Audience</label>
+        @php $selectedAudience = (string) old('audience', $step->audience ?? 'share'); @endphp
         <select class="input-sharesub" id="audience" name="audience">
-            <option value="share" @selected(old('audience', $step->audience ?? 'share') === 'share')>I want to share</option>
-            <option value="seat" @selected(old('audience', $step->audience ?? 'share') === 'seat')>I want a seat</option>
+            @foreach ($audiences as $audienceValue => $audienceLabel)
+                <option value="{{ $audienceValue }}" @selected($selectedAudience === $audienceValue)>{{ $audienceLabel }}</option>
+            @endforeach
+            @if ($selectedAudience !== '' && ! array_key_exists($selectedAudience, $audiences))
+                <option value="{{ $selectedAudience }}" selected>{{ $selectedAudience }} (no longer listed)</option>
+            @endif
         </select>
     </div>
     <div class="col-12 form-group">

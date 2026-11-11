@@ -15,6 +15,36 @@
                     <label for="settings-{{ $key }}">{{ $meta['label'] }} <span class="text-muted">({{ $key }})</span></label>
                     @if ($meta['type'] === 'textarea')
                         <textarea class="input-sharesub{{ str_ends_with($key, '_html') ? ' rich-text-editor' : '' }}" id="settings-{{ $key }}" name="settings[{{ $key }}]" rows="3">{{ old('settings.'.$key, $settings[$key] ?? '') }}</textarea>
+                    @elseif ($meta['type'] === 'currency')
+                        @php $currentCurrency = old('settings.'.$key, $settings[$key] ?? ''); @endphp
+                        <select class="input-sharesub" id="settings-{{ $key }}" name="settings[{{ $key }}]">
+                            @if (! $currencies->contains('code', $currentCurrency))
+                                <option value="{{ $currentCurrency }}" selected>{{ $currentCurrency }}</option>
+                            @endif
+                            @foreach ($currencies as $currencyOption)
+                                <option value="{{ $currencyOption->code }}" @selected($currentCurrency === $currencyOption->code)>{{ $currencyOption->code }} ({{ $currencyOption->symbol }}) {{ $currencyOption->name }}</option>
+                            @endforeach
+                        </select>
+                    @elseif ($meta['type'] === 'locale')
+                        @php $currentLocale = old('settings.'.$key, $settings[$key] ?? ''); @endphp
+                        <select class="input-sharesub" id="settings-{{ $key }}" name="settings[{{ $key }}]">
+                            @if (! collect($locales)->contains('code', $currentLocale))
+                                <option value="{{ $currentLocale }}" selected>{{ $currentLocale }}</option>
+                            @endif
+                            @foreach ($locales as $localeOption)
+                                <option value="{{ $localeOption['code'] }}" @selected($currentLocale === $localeOption['code'])>{{ $localeOption['label'] }} ({{ $localeOption['code'] }})</option>
+                            @endforeach
+                        </select>
+                    @elseif ($meta['type'] === 'brand_slug')
+                        @php $currentSlug = old('settings.'.$key, $settings[$key] ?? ''); @endphp
+                        <select class="input-sharesub" id="settings-{{ $key }}" name="settings[{{ $key }}]">
+                            @if (! $brands->contains('slug', $currentSlug))
+                                <option value="{{ $currentSlug }}" selected>{{ $currentSlug }}</option>
+                            @endif
+                            @foreach ($brands as $brandOption)
+                                <option value="{{ $brandOption->slug }}" @selected($currentSlug === $brandOption->slug)>{{ $brandOption->name }} ({{ $brandOption->slug }})</option>
+                            @endforeach
+                        </select>
                     @else
                         <input class="input-sharesub" id="settings-{{ $key }}" name="settings[{{ $key }}]" value="{{ old('settings.'.$key, $settings[$key] ?? '') }}">
                     @endif

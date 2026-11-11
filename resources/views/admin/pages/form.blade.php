@@ -5,9 +5,14 @@
     </div>
     <div class="col-12 col-md-6 form-group">
         <label for="type">Type</label>
+        @php $selectedType = (string) old('type', $page->type); @endphp
         <select class="input-sharesub" id="type" name="type" required>
-            <option value="page" @selected(old('type', $page->type) === 'page')>Page</option>
-            <option value="post" @selected(old('type', $page->type) === 'post')>Post</option>
+            @foreach ($types as $typeValue => $typeLabel)
+                <option value="{{ $typeValue }}" @selected($selectedType === $typeValue)>{{ $typeLabel }}</option>
+            @endforeach
+            @if ($selectedType !== '' && ! array_key_exists($selectedType, $types))
+                <option value="{{ $selectedType }}" selected>{{ $selectedType }} (no longer listed)</option>
+            @endif
         </select>
     </div>
     <div class="col-12 form-group">

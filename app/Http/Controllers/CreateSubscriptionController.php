@@ -71,16 +71,38 @@ class CreateSubscriptionController extends Controller
             }
         }
 
+        // Whether the session already holds a draft the user is working
+        // on. When it does not, but the draft cookie still points at one,
+        // the wizard offers to resume it (the original's "Continuing to
+        // create" modal) instead of silently orphaning it.
+        $sessionOfferId = (int) $request->session()->get('create_offer_id', 0);
+        $hadWorkingOffer = $sessionOfferId > 0
+            && Offer::where('id', $sessionOfferId)->where('user_id', Auth::id())->where('status', 'draft')->exists();
+
         if ($offer === null) {
             $offer = $this->workingOffer($request);
         }
 
         $this->applyDeepLink($request, $offer);
 
+        $restoredDraft = null;
+        if (! $request->filled('draft') && ! $hadWorkingOffer) {
+            $cookieHash = (string) $request->cookie('draft', '');
+            if ($cookieHash !== '') {
+                $cookieDraft = Offer::where('hash', $cookieHash)
+                    ->where('user_id', Auth::id())
+                    ->where('status', 'draft')
+                    ->first();
+                if ($cookieDraft !== null && (int) $cookieDraft->id !== (int) $offer->id) {
+                    $restoredDraft = $cookieDraft;
+                }
+            }
+        }
+
         $steps = $this->steps($offer);
         $step = $this->requestedStep($request, $steps);
 
-        return $this->renderWizard($request, $offer, $steps, $step);
+        return $this->renderWizard($request, $offer, $steps, $step, $restoredDraft);
     }
 
     public function saveStep(Request $request): RedirectResponse
@@ -102,7 +124,11 @@ class CreateSubscriptionController extends Controller
         $position = array_search($step, $keys, true);
         $next = $keys[min($position + 1, count($keys) - 1)];
 
-        return redirect()->route('user.create-subscription', ['step' => $next]);
+        // Keep the draft cookie in sync, exactly as storeDraft does: the
+        // returning-user "Continuing to create" modal is driven by this
+        // cookie when the session holds no working offer.
+        return redirect()->route('user.create-subscription', ['step' => $next])
+            ->withCookie(cookie('draft', (string) $offer->hash, 30240, '/', null, $request->secure(), false));
     }
 
     public function publish(Request $request): RedirectResponse
@@ -179,8 +205,14 @@ class CreateSubscriptionController extends Controller
             $request->session()->forget('create_offer_id');
         }
 
-        return redirect()->route('user.shared-subscriptions')
-            ->with('status', 'Your subscription was deleted.');
+        // The draft modal's Cancel asks to start fresh in the wizard
+        // instead of leaving for the subscriptions list.
+        $response = $request->input('redirect') === 'create'
+            ? redirect()->route('user.create-subscription')
+            : redirect()->route('user.shared-subscriptions');
+
+        return $response->with('status', 'Your subscription was deleted.')
+            ->withoutCookie('draft');
     }
 
     // ------------------------------------------------------------------
@@ -328,7 +360,7 @@ class CreateSubscriptionController extends Controller
         return array_key_first($steps);
     }
 
-    protected function renderWizard(Request $request, Offer $offer, array $steps, string $step): View
+    protected function renderWizard(Request $request, Offer $offer, array $steps, string $step, ?Offer $draft = null): View
     {
         $keys = array_keys($steps);
         $position = array_search($step, $keys, true);
@@ -336,6 +368,7 @@ class CreateSubscriptionController extends Controller
 
         return view('create-subscription.wizard', [
             'offer' => $offer,
+            'draft' => $draft,
             'steps' => $steps,
             'step' => $step,
             'stepIndex' => $position,
@@ -447,15 +480,25 @@ class CreateSubscriptionController extends Controller
         $share = (int) ($offer->share ?? 1);
         $frequency = (int) ($offer->frequency ?? 2);
 
-        $eachPays = $this->eachPays($share, $total, $friends, $totalSeats);
-        $ownerPrice = round($eachPays * $friends, 2);
+        // Display math follows the capture exactly: the per-seat price is
+        // the plain division (no early rounding); every amount is rounded
+        // only when formatted for display, like the original's Uo()
+        // formatter. (Verified against the original's own screenshot:
+        // £6.99, 1 friend, 2 seats shows each £3.5, receive £3.5, net
+        // £3.5, save £41.94.) The stored join price still uses the
+        // rounded eachPays() below.
+        $divisor = $share === 1
+            ? max(1, $totalSeats)
+            : ($share === 3 ? max(1, $friends) : max(1, $friends + 1));
+        $eachPays = $total > 0 ? $total / $divisor : 0.0;
+        $ownerPrice = $eachPays * $friends;
 
         return [
             'total' => round($total, 2),
             'eachPays' => $eachPays,
             'ownerPrice' => $ownerPrice,
-            'netCost' => max(0, round($total - $ownerPrice, 2)),
-            'annualSaving' => round($ownerPrice * (self::FREQUENCY_MULTIPLIERS[$frequency] ?? 12), 2),
+            'netCost' => max(0, $total - $ownerPrice),
+            'annualSaving' => $ownerPrice * (self::FREQUENCY_MULTIPLIERS[$frequency] ?? 12),
         ];
     }
 

@@ -27,9 +27,14 @@
                 </div>
                 <div class="col-12 col-md-6 form-group">
                     <label for="role">Role</label>
+                    @php $selectedRole = (string) old('role', $user->role); @endphp
                     <select class="input-sharesub" id="role" name="role" required>
-                        <option value="user" @selected(old('role', $user->role) === 'user')>User</option>
-                        <option value="admin" @selected(old('role', $user->role) === 'admin')>Admin</option>
+                        @foreach ($roles as $roleValue => $roleLabel)
+                            <option value="{{ $roleValue }}" @selected($selectedRole === $roleValue)>{{ $roleLabel }}</option>
+                        @endforeach
+                        @if ($selectedRole !== '' && ! array_key_exists($selectedRole, $roles))
+                            <option value="{{ $selectedRole }}" selected>{{ $selectedRole }} (no longer listed)</option>
+                        @endif
                     </select>
                 </div>
                 <div class="col-12 col-md-6 form-group">
@@ -42,7 +47,15 @@
                 </div>
                 <div class="col-12 col-md-6 form-group">
                     <label for="language">Language</label>
-                    <input class="input-sharesub" id="language" name="language" value="{{ old('language', $user->language ?: 'en') }}" required>
+                    @php $selectedLanguage = (string) old('language', $user->language ?: 'en'); @endphp
+                    <select class="input-sharesub" id="language" name="language" required>
+                        @foreach ($languages as $languageCode)
+                            <option value="{{ $languageCode }}" @selected($selectedLanguage === $languageCode)>{{ $languageCode }}</option>
+                        @endforeach
+                        @if ($selectedLanguage !== '' && ! in_array($selectedLanguage, $languages, true))
+                            <option value="{{ $selectedLanguage }}" selected>{{ $selectedLanguage }} (no longer listed)</option>
+                        @endif
+                    </select>
                 </div>
                 <div class="col-12 col-md-6 form-group">
                     <label for="phone">Phone</label>
@@ -54,7 +67,16 @@
                 </div>
                 <div class="col-12 col-md-6 form-group">
                     <label for="country">Country</label>
-                    <input class="input-sharesub" id="country" name="country" maxlength="2" value="{{ old('country', $user->country) }}">
+                    @php $selectedCountry = (string) old('country', $user->country); @endphp
+                    <select class="input-sharesub" id="country" name="country">
+                        <option value="">Select a country</option>
+                        @foreach ($countries as $countryOption)
+                            <option value="{{ $countryOption->code }}" @selected($selectedCountry === $countryOption->code)>{{ $countryOption->name }}</option>
+                        @endforeach
+                        @if ($selectedCountry !== '' && ! $countries->contains('code', $selectedCountry))
+                            <option value="{{ $selectedCountry }}" selected>{{ $selectedCountry }} (no longer listed)</option>
+                        @endif
+                    </select>
                 </div>
                 <div class="col-12 col-md-6 form-group">
                     <label for="referral_code">Referral code</label>

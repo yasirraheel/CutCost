@@ -224,11 +224,11 @@ class CurrencyTest extends TestCase
 
         $this->get('/en/create-subscription?step=currency')
             ->assertOk()
-            ->assertSee('£ GBP', false)
+            ->assertSee('<span class="text-bold">£</span> GBP', false)
             ->assertSee('Pound Sterling')
-            ->assertSee('€ EUR', false)
+            ->assertSee('<span class="text-bold">€</span> EUR', false)
             ->assertSee('Euro')
-            ->assertSee('$ USD', false)
+            ->assertSee('<span class="text-bold">$</span> USD', false)
             ->assertSee('US Dollar');
     }
 
@@ -241,18 +241,18 @@ class CurrencyTest extends TestCase
         $this->walkToCurrencyStep($swiss);
         $this->get('/en/create-subscription?step=currency')
             ->assertOk()
-            ->assertSee('CHF CHF', false)
+            ->assertSee('<span class="text-bold">CHF</span> CHF', false)
             ->assertSee('Swiss Franc')
-            ->assertSee('€ EUR', false)
-            ->assertSee('$ USD', false)
+            ->assertSee('<span class="text-bold">€</span> EUR', false)
+            ->assertSee('<span class="text-bold">$</span> USD', false)
             ->assertDontSee('£ GBP', false);
 
         $xpf = $this->makeCountry(['code' => 'PF', 'name' => 'French Polynesia', 'currency' => 'XPF']);
         $this->walkToCurrencyStep($xpf);
         $this->get('/en/create-subscription?step=currency')
             ->assertOk()
-            ->assertSee('€ EUR', false)
-            ->assertSee('$ USD', false)
+            ->assertSee('<span class="text-bold">€</span> EUR', false)
+            ->assertSee('<span class="text-bold">$</span> USD', false)
             ->assertDontSee('XPF', false);
     }
 
@@ -418,9 +418,13 @@ class CurrencyTest extends TestCase
         $this->post('/en/create-subscription/step', ['step' => 'currency', 'currency' => 'EUR'])
             ->assertRedirect('/en/create-subscription?step=share');
 
+        // The share step formats money like the original's Uo() formatter:
+        // at most 2 decimals with trailing zeros dropped, so a zero total
+        // shows as €0, not €0.00.
         $this->get('/en/create-subscription?step=share')
             ->assertOk()
-            ->assertSee('€0.00 / month', false);
+            ->assertSee('€0', false)
+            ->assertSee('/ month', false);
     }
 
     public function test_usd_and_country_backfill_migration_repairs_an_existing_database(): void

@@ -1,11 +1,15 @@
 <div class="row">
     <div class="col-12 col-md-6 form-group">
         <label for="brand_id">Brand</label>
+        @php $selectedBrandId = (int) old('brand_id', $faq->brand_id); @endphp
         <select class="input-sharesub" id="brand_id" name="brand_id" required>
             <option value="">Select a brand</option>
             @foreach ($brands as $brand)
-                <option value="{{ $brand->id }}" @selected((int) old('brand_id', $faq->brand_id) === $brand->id)>{{ $brand->name }}</option>
+                <option value="{{ $brand->id }}" @selected($selectedBrandId === $brand->id)>{{ $brand->name }}</option>
             @endforeach
+            @if ($selectedBrandId > 0 && ! $brands->contains('id', $selectedBrandId))
+                <option value="{{ $selectedBrandId }}" selected>Brand #{{ $selectedBrandId }} (no longer listed)</option>
+            @endif
         </select>
     </div>
     <div class="col-12 col-md-6 form-group">

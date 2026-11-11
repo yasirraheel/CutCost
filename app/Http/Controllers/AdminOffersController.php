@@ -7,6 +7,7 @@ use App\Models\Brand;
 use App\Models\Currency;
 use App\Models\Offer;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AdminOffersController extends Controller
 {
@@ -51,7 +52,7 @@ class AdminOffersController extends Controller
 
     public function update(Request $request, Offer $offer)
     {
-        $validated = $request->validate($this->rules());
+        $validated = $request->validate($this->rules($offer));
 
         $offer->fill($this->attributes($request, $validated));
         $offer->save();
@@ -67,13 +68,26 @@ class AdminOffersController extends Controller
     }
 
     /** @return array<string, mixed> */
-    protected function rules(): array
+    protected function rules(?Offer $offer = null): array
     {
+        // Dropdown options are the live table values, plus the offer's own
+        // stored value when it is no longer in the table, so an old row can
+        // still be opened and saved without silently resetting it.
+        $brandIds = Brand::orderBy('id')->pluck('id')->map(fn ($id) => (string) $id)->all();
+        if ($offer !== null && $offer->brand_id !== null) {
+            $brandIds[] = (string) $offer->brand_id;
+        }
+
+        $currencyCodes = Currency::ordered()->pluck('code')->map(fn ($code) => strtoupper((string) $code))->all();
+        if ($offer !== null && filled($offer->currency)) {
+            $currencyCodes[] = strtoupper($offer->currency);
+        }
+
         return [
-            'brand_id' => ['required', 'exists:brands,id'],
+            'brand_id' => ['required', Rule::in($brandIds)],
             'title' => ['required', 'string', 'max:255'],
             'price' => ['required', 'numeric', 'min:0'],
-            'currency' => ['required', 'string', 'size:3', 'exists:currencies,code'],
+            'currency' => ['required', 'string', 'size:3', Rule::in($currencyCodes)],
             'seats_total' => ['nullable', 'integer', 'min:0'],
             'seats_available' => ['nullable', 'integer', 'min:0'],
             'seller_name' => ['nullable', 'string', 'max:255'],

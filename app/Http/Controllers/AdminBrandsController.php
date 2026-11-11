@@ -113,7 +113,7 @@ class AdminBrandsController extends Controller
             'price' => $validated['price'],
             'full_price' => $validated['full_price'] ?? null,
             'currency' => $currency,
-            'currency_symbol' => $validated['currency_symbol'] ?: Currency::symbolFor($currency),
+            'currency_symbol' => $validated['currency_symbol'] ?? null ?: Currency::symbolFor($currency),
             'discount_percent' => $validated['discount_percent'] ?? null,
             'background' => $validated['background'] ?? null,
             'icon_svg' => $validated['icon_svg'] ?? null,

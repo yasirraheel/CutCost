@@ -1,3 +1,7 @@
+@php
+    $selectedCurrency = old('currency', $brand->currency);
+    $selectedCategoryId = (int) old('category_id', $brand->category_id);
+@endphp
 <div class="row">
     <div class="col-12 col-md-6 form-group">
         <label for="name">Name</label>
@@ -18,8 +22,11 @@
     <div class="col-12 col-md-4 form-group">
         <label for="currency">Currency code</label>
         <select class="input-sharesub" id="currency" name="currency">
+            @if ($selectedCurrency && ! $currencies->contains('code', $selectedCurrency))
+                <option value="{{ $selectedCurrency }}" selected>{{ $selectedCurrency }} (stored value, not in currencies)</option>
+            @endif
             @foreach ($currencies as $currencyOption)
-                <option value="{{ $currencyOption->code }}" @selected(old('currency', $brand->currency) === $currencyOption->code)>{{ $currencyOption->code }} ({{ $currencyOption->symbol }}) {{ $currencyOption->name }}</option>
+                <option value="{{ $currencyOption->code }}" @selected($selectedCurrency === $currencyOption->code)>{{ $currencyOption->code }} ({{ $currencyOption->symbol }}) {{ $currencyOption->name }}</option>
             @endforeach
         </select>
     </div>
@@ -35,8 +42,11 @@
         <label for="category_id">Category</label>
         <select class="input-sharesub" id="category_id" name="category_id">
             <option value="">No category</option>
+            @if ($selectedCategoryId && ! $categories->contains('id', $selectedCategoryId))
+                <option value="{{ $selectedCategoryId }}" selected>Category #{{ $selectedCategoryId }} (no longer in categories)</option>
+            @endif
             @foreach ($categories as $category)
-                <option value="{{ $category->id }}" @selected((int) old('category_id', $brand->category_id) === $category->id)>{{ $category->name }}</option>
+                <option value="{{ $category->id }}" @selected($selectedCategoryId === $category->id)>{{ $category->name }}</option>
             @endforeach
         </select>
     </div>

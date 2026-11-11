@@ -97,18 +97,20 @@ class SiteChromeTest extends TestCase
         return $match[0] ?? '';
     }
 
-    public function test_wizard_uses_the_same_header_and_footer_as_the_homepage(): void
+    public function test_wizard_has_no_site_header_or_footer_like_the_original_create_page(): void
     {
         $user = User::factory()->create(['role' => 'user']);
         $this->actingAs($user);
 
-        $home = $this->get('/en')->assertOk()->getContent();
         $wizard = $this->get('/en/create-subscription')->assertOk()->getContent();
 
-        $this->assertSame($this->plainText($this->navHtml($home)), $this->plainText($this->navHtml($wizard)));
-        $this->assertSame($this->plainText($this->footerHtml($home)), $this->plainText($this->footerHtml($wizard)));
-        $this->assertStringContainsString('sharesub-navbar', $wizard);
-        $this->assertStringContainsString('sharesub-footer', $wizard);
+        // The original create page is just the wizard: no site header or
+        // footer (verified in the captured create-subscription.html, which
+        // has no header/footer markup at all).
+        $this->assertStringNotContainsString('sharesub-navbar', $wizard);
+        $this->assertStringNotContainsString('sharesub-footer', $wizard);
+        $this->assertStringContainsString('navbar-create-sub', $wizard);
+        $this->assertStringContainsString('Create your shared subscription', $wizard);
     }
 
     public function test_brand_page_keeps_its_captured_footer_columns(): void

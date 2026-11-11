@@ -22,8 +22,9 @@ class AdminHowItWorksStepsController extends Controller
     public function create()
     {
         $step = new HowItWorksStep(['is_active' => true, 'audience' => 'share']);
+        $audiences = $this->audiences();
 
-        return $this->adminShell(view('admin.how-it-works.create', compact('step'))->render(), 'New step', '/en/admin/how-it-works');
+        return $this->adminShell(view('admin.how-it-works.create', compact('step', 'audiences'))->render(), 'New step', '/en/admin/how-it-works');
     }
 
     public function store(Request $request)
@@ -41,12 +42,14 @@ class AdminHowItWorksStepsController extends Controller
 
     public function edit(HowItWorksStep $step)
     {
-        return $this->adminShell(view('admin.how-it-works.edit', compact('step'))->render(), 'Edit step', '/en/admin/how-it-works');
+        $audiences = $this->audiences();
+
+        return $this->adminShell(view('admin.how-it-works.edit', compact('step', 'audiences'))->render(), 'Edit step', '/en/admin/how-it-works');
     }
 
     public function update(Request $request, HowItWorksStep $step)
     {
-        $validated = $request->validate($this->rules());
+        $validated = $request->validate($this->rules($step));
 
         $oldMockupPath = $step->mockup_image_path;
         $step->fill($this->attributes($request, $validated));
@@ -71,14 +74,31 @@ class AdminHowItWorksStepsController extends Controller
         return redirect()->route('admin.how-it-works.index')->with('status', 'Step has been deleted.');
     }
 
-    /** @return array<string, mixed> */
-    protected function rules(): array
+    /** Audiences the app defines for a step, value => label. */
+    protected function audiences(): array
     {
+        return [
+            'share' => 'I want to share',
+            'seat' => 'I want a seat',
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    protected function rules(?HowItWorksStep $step = null): array
+    {
+        // Dropdown options are the app-defined audiences, plus the
+        // step's own stored value when it is no longer in the set, so
+        // an old row can still be saved without silently resetting it.
+        $audiences = array_keys($this->audiences());
+        if ($step !== null && filled($step->audience)) {
+            $audiences[] = $step->audience;
+        }
+
         return [
             'title' => ['required', 'string', 'max:255'],
             'text' => ['nullable', 'string'],
             'icon_svg' => ['nullable', 'string'],
-            'audience' => ['nullable', 'string', Rule::in(['share', 'seat'])],
+            'audience' => ['nullable', 'string', Rule::in($audiences)],
             'mockup' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,svg', 'max:2048'],
             'sort_order' => ['nullable', 'integer'],
             'is_active' => ['nullable', 'boolean'],

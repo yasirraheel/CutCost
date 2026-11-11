@@ -1,10 +1,20 @@
+@php
+    $selectedBrandId = (int) old('brand_id', $template->brand_id);
+    $selectedCurrency = old('currency', $template->currency);
+    $selectedCredentialType = (int) old('credentials_type', $template->credentials_type ?? 0);
+    $selectedFrequency = (int) old('frequency', $template->frequency ?? 2);
+    $selectedCostSharing = (int) old('cost_sharing', $template->cost_sharing ?? 1);
+@endphp
 <div class="row">
     <div class="col-12 col-md-6 form-group">
         <label for="brand_id">Brand</label>
         <select class="input-sharesub" id="brand_id" name="brand_id" required>
             <option value="">Select a brand</option>
+            @if ($selectedBrandId && ! $brands->contains('id', $selectedBrandId))
+                <option value="{{ $selectedBrandId }}" selected>Brand #{{ $selectedBrandId }} (no longer in brands)</option>
+            @endif
             @foreach ($brands as $brand)
-                <option value="{{ $brand->id }}" @selected((int) old('brand_id', $template->brand_id) === $brand->id)>{{ $brand->name }}</option>
+                <option value="{{ $brand->id }}" @selected($selectedBrandId === $brand->id)>{{ $brand->name }}</option>
             @endforeach
         </select>
     </div>
@@ -19,9 +29,45 @@
     <div class="col-12 col-md-6 form-group">
         <label for="currency">Currency code</label>
         <select class="input-sharesub" id="currency" name="currency" required>
+            @if ($selectedCurrency && ! $currencies->contains('code', $selectedCurrency))
+                <option value="{{ $selectedCurrency }}" selected>{{ $selectedCurrency }} (stored value, not in currencies)</option>
+            @endif
             @foreach ($currencies as $currencyOption)
-                <option value="{{ $currencyOption->code }}" @selected(old('currency', $template->currency) === $currencyOption->code)>{{ $currencyOption->code }} ({{ $currencyOption->symbol }}) {{ $currencyOption->name }}</option>
+                <option value="{{ $currencyOption->code }}" @selected($selectedCurrency === $currencyOption->code)>{{ $currencyOption->code }} ({{ $currencyOption->symbol }}) {{ $currencyOption->name }}</option>
             @endforeach
+        </select>
+    </div>
+    <div class="col-12 col-md-4 form-group">
+        <label for="credentials_type">Credentials type</label>
+        <select class="input-sharesub" id="credentials_type" name="credentials_type">
+            @foreach ($credentialTypes as $value => $label)
+                <option value="{{ $value }}" @selected($selectedCredentialType === (int) $value)>{{ $label }}</option>
+            @endforeach
+            @if (! array_key_exists($selectedCredentialType, $credentialTypes))
+                <option value="{{ $selectedCredentialType }}" selected>{{ $selectedCredentialType }} (stored value, type not defined in app)</option>
+            @endif
+        </select>
+    </div>
+    <div class="col-12 col-md-4 form-group">
+        <label for="frequency">Billing frequency</label>
+        <select class="input-sharesub" id="frequency" name="frequency">
+            @foreach ($frequencies as $value => $label)
+                <option value="{{ $value }}" @selected($selectedFrequency === (int) $value)>{{ $label }}</option>
+            @endforeach
+            @if (! array_key_exists($selectedFrequency, $frequencies))
+                <option value="{{ $selectedFrequency }}" selected>{{ $selectedFrequency }} (stored value, not in the list)</option>
+            @endif
+        </select>
+    </div>
+    <div class="col-12 col-md-4 form-group">
+        <label for="cost_sharing">Cost sharing</label>
+        <select class="input-sharesub" id="cost_sharing" name="cost_sharing">
+            @foreach ($costSharingOptions as $value => $label)
+                <option value="{{ $value }}" @selected($selectedCostSharing === (int) $value)>{{ $label }}</option>
+            @endforeach
+            @if (! array_key_exists($selectedCostSharing, $costSharingOptions))
+                <option value="{{ $selectedCostSharing }}" selected>{{ $selectedCostSharing }} (stored value, not in the list)</option>
+            @endif
         </select>
     </div>
     <div class="col-12 col-md-4 form-group">

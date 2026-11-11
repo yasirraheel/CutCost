@@ -1,11 +1,15 @@
 <div class="row">
     <div class="col-12 col-md-6 form-group">
         <label for="brand_id">Brand</label>
+        @php $selectedBrandId = (int) old('brand_id', $offer->brand_id); @endphp
         <select class="input-sharesub" id="brand_id" name="brand_id" required>
             <option value="">Select a brand</option>
             @foreach ($brands as $brand)
-                <option value="{{ $brand->id }}" @selected((int) old('brand_id', $offer->brand_id) === $brand->id)>{{ $brand->name }}</option>
+                <option value="{{ $brand->id }}" @selected($selectedBrandId === $brand->id)>{{ $brand->name }}</option>
             @endforeach
+            @if ($selectedBrandId > 0 && ! $brands->contains('id', $selectedBrandId))
+                <option value="{{ $selectedBrandId }}" selected>Brand #{{ $selectedBrandId }} (no longer listed)</option>
+            @endif
         </select>
     </div>
     <div class="col-12 col-md-6 form-group">
@@ -18,10 +22,14 @@
     </div>
     <div class="col-12 col-md-4 form-group">
         <label for="currency">Currency code</label>
+        @php $selectedCurrency = strtoupper((string) old('currency', $offer->currency)); @endphp
         <select class="input-sharesub" id="currency" name="currency" required>
             @foreach ($currencies as $currencyOption)
-                <option value="{{ $currencyOption->code }}" @selected(old('currency', $offer->currency) === $currencyOption->code)>{{ $currencyOption->code }} ({{ $currencyOption->symbol }}) {{ $currencyOption->name }}</option>
+                <option value="{{ $currencyOption->code }}" @selected($selectedCurrency === strtoupper($currencyOption->code))>{{ $currencyOption->code }} ({{ $currencyOption->symbol }}) {{ $currencyOption->name }}</option>
             @endforeach
+            @if ($selectedCurrency !== '' && ! $currencies->contains('code', $selectedCurrency))
+                <option value="{{ $selectedCurrency }}" selected>{{ $selectedCurrency }} (no longer listed)</option>
+            @endif
         </select>
     </div>
     <div class="col-12 col-md-4 form-group">

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RendersAdminShell;
+use App\Models\Country;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,17 +22,39 @@ class AdminUsersController extends Controller
 
     public function edit(User $user)
     {
-        return $this->adminShell(view('admin.users.edit', compact('user'))->render(), 'Edit user', '/en/admin/users');
+        $roles = $this->roles();
+        $countries = Country::orderBy('name')->get();
+        $languages = $this->languages();
+
+        return $this->adminShell(view('admin.users.edit', compact('user', 'roles', 'countries', 'languages'))->render(), 'Edit user', '/en/admin/users');
     }
 
     public function update(Request $request, User $user)
     {
+        // Dropdown options are the live sets, plus the user's own stored
+        // value when it is no longer in the set, so an old record can
+        // still be saved without silently resetting it.
+        $roles = array_keys($this->roles());
+        if (filled($user->role)) {
+            $roles[] = $user->role;
+        }
+
+        $countryCodes = Country::orderBy('name')->pluck('code')->all();
+        if (filled($user->country)) {
+            $countryCodes[] = $user->country;
+        }
+
+        $languages = $this->languages();
+        if (filled($user->language)) {
+            $languages[] = $user->language;
+        }
+
         $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'username' => ['nullable', 'string', 'max:255', Rule::unique('users', 'username')->ignore($user->id)],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'role' => ['required', Rule::in(['user', 'admin'])],
+            'role' => ['required', Rule::in($roles)],
             'birthdate' => ['nullable', 'date', 'before_or_equal:today'],
             'phone' => ['nullable', 'string', 'max:50'],
             'intl_phone' => ['nullable', 'string', 'max:50'],
@@ -40,9 +63,9 @@ class AdminUsersController extends Controller
             'city' => ['nullable', 'string', 'max:255'],
             'zip' => ['nullable', 'string', 'max:30'],
             'state' => ['nullable', 'string', 'max:255'],
-            'country' => ['nullable', 'string', 'size:2'],
+            'country' => ['nullable', 'string', 'size:2', Rule::in($countryCodes)],
             'referral_code' => ['nullable', 'string', 'max:255'],
-            'language' => ['required', 'string', 'max:10'],
+            'language' => ['required', Rule::in($languages)],
             'payout_low_amount' => ['nullable', 'boolean'],
             'payout_convert_currency' => ['nullable', 'boolean'],
             'password' => ['nullable', 'string', 'min:8'],
@@ -92,5 +115,20 @@ class AdminUsersController extends Controller
         $user->delete();
 
         return redirect()->route('admin.users')->with('status', 'User has been deleted.');
+    }
+
+    /** Roles the app defines for a user, value => label. */
+    protected function roles(): array
+    {
+        return [
+            'user' => 'User',
+            'admin' => 'Admin',
+        ];
+    }
+
+    /** Languages the app defines, shared with the user settings page. */
+    protected function languages(): array
+    {
+        return (new SettingsController)->languages();
     }
 }

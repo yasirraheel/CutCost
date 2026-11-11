@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RendersAdminShell;
+use App\Models\Brand;
 use App\Models\Currency;
 use App\Models\SiteSetting;
 use Illuminate\Http\Request;
@@ -64,8 +65,8 @@ class AdminSiteSettingsController extends Controller
             'nav_browse_label' => ['label' => 'Nav browse label', 'type' => 'text'],
             'nav_help_label' => ['label' => 'Nav help label', 'type' => 'text'],
             'locales_json' => ['label' => 'Locales JSON', 'type' => 'textarea'],
-            'default_locale' => ['label' => 'Default locale', 'type' => 'text'],
-            'fallback_locale' => ['label' => 'Fallback locale', 'type' => 'text'],
+            'default_locale' => ['label' => 'Default locale', 'type' => 'locale'],
+            'fallback_locale' => ['label' => 'Fallback locale', 'type' => 'locale'],
             'seo_home_title' => ['label' => 'SEO home title', 'type' => 'text'],
             'seo_home_description' => ['label' => 'SEO home description', 'type' => 'textarea'],
             'seo_catalogue_title' => ['label' => 'SEO catalogue title', 'type' => 'text'],
@@ -75,8 +76,8 @@ class AdminSiteSettingsController extends Controller
             'jsonld_rating_value' => ['label' => 'JSON-LD rating value', 'type' => 'text'],
             'jsonld_rating_count' => ['label' => 'JSON-LD rating count', 'type' => 'text'],
             'calculator_avg_yearly_savings' => ['label' => 'Calculator average yearly savings', 'type' => 'text'],
-            'calculator_default_brand_slug' => ['label' => 'Calculator default brand slug', 'type' => 'text'],
-            'default_currency_code' => ['label' => 'Default currency code', 'type' => 'text'],
+            'calculator_default_brand_slug' => ['label' => 'Calculator default brand slug', 'type' => 'brand_slug'],
+            'default_currency_code' => ['label' => 'Default currency code', 'type' => 'currency'],
             'how_title' => ['label' => 'How it works title', 'type' => 'text'],
             'how_section_title' => ['label' => 'How it works section title', 'type' => 'text'],
             'how_share_label' => ['label' => 'How it works share label', 'type' => 'text'],
@@ -108,7 +109,26 @@ class AdminSiteSettingsController extends Controller
         $keys = self::keys();
         $settings = SiteSetting::whereIn('key', array_keys($keys))->pluck('value', 'key');
 
-        return $this->adminShell(view('admin.settings.edit', compact('keys', 'settings'))->render(), 'Site settings', '/en/admin/content/settings');
+        $currencies = Currency::ordered()->get();
+
+        $brands = Brand::where('is_active', true)->orderBy('name')->get(['slug', 'name']);
+
+        // Locale options come from the locales_json setting itself: that is
+        // the set the app already defines for the language dropdown.
+        $locales = [];
+        $localesJson = $settings['locales_json'] ?? null;
+        if (is_string($localesJson)) {
+            $decoded = json_decode($localesJson, true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $locale) {
+                    if (is_array($locale) && isset($locale['code']) && is_string($locale['code']) && $locale['code'] !== '') {
+                        $locales[] = ['code' => $locale['code'], 'label' => (string) ($locale['label'] ?? $locale['code'])];
+                    }
+                }
+            }
+        }
+
+        return $this->adminShell(view('admin.settings.edit', compact('keys', 'settings', 'currencies', 'brands', 'locales'))->render(), 'Site settings', '/en/admin/content/settings');
     }
 
     public function update(Request $request)

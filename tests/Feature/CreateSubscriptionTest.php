@@ -420,7 +420,7 @@ class CreateSubscriptionTest extends TestCase
         ]);
 
         $this->actingAs($owner);
-        $this->get('/en/create-subscription/'.$offer->id.'/edit')->assertOk()->assertSee('My Video Plan');
+        $this->get('/en/create-subscription/'.$offer->id.'/edit')->assertOk()->assertSee('What country is the subscription from?');
 
         $this->put('/en/create-subscription/'.$offer->id, [
             'name' => 'My Video Plan Renamed',
@@ -535,7 +535,7 @@ class CreateSubscriptionTest extends TestCase
             ->get('/en/create-subscription?template=audible&country=united-kingdom');
 
         $response->assertOk();
-        $response->assertSee('Step 1 of 6: Country');
+        $response->assertSee('What country is the subscription from?');
         $response->assertDontSee('Step 1 of 8');
 
         $offer = Offer::where('user_id', $user->id)->where('status', 'draft')->first();
