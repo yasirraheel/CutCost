@@ -1,33 +1,11 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CutCost Admin - Edit user</title>
-    <link href="/css/app.css?id=d5e0988" rel="stylesheet">
-</head>
-<body>
-<main class="container-fluid dashboard-container">
-    <div class="dashboard-header">
-        <div class="row align-items-center">
-            <div class="col-12 col-lg-8">
-                <h1 class="dashboard-header-title">Admin panel · <span class="text-green">Edit user</span></h1>
-            </div>
-            <div class="col-12 col-lg-4 text-lg-right">
-                <a class="btn-sharesub green" href="{{ route('admin.users') }}">Back to users</a>
-            </div>
-        </div>
-    </div>
-
+<section class="card-sharesub p-4">
     @if (session('status'))
         <div class="alert alert-success" role="status">{{ session('status') }}</div>
     @endif
     @if ($errors->any())
         <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
     @endif
-
-    <section class="card-sharesub p-4">
-        <form method="POST" action="{{ route('admin.users.update', $user) }}">
+    <form method="POST" action="{{ route('admin.users.update', $user) }}">
             @csrf
             @method('PUT')
             <div class="row">
@@ -123,8 +101,5 @@
                 </div>
             </div>
             <button type="submit" class="btn-sharesub bleu mx-auto my-2 d-block">Save user</button>
-        </form>
-    </section>
-</main>
-</body>
-</html>
+    </form>
+</section>
