@@ -90,13 +90,51 @@ class Offer extends Model
         return $this->hasMany(ChatMessage::class);
     }
 
+    /**
+     * Offer review states. The original Sharesub captures show no
+     * approval step for a shared subscription (review wording in the
+     * captures appears only for identity documents), so the review
+     * workflow follows the user's own words and the app's existing
+     * KYC approve/reject pattern instead. A wizard publish lands in
+     * pending review; an admin approves it to active or rejects it.
+     * 'pending' is the value the codebase already uses for that state
+     * (OfferPayment::STATUS_PENDING). The column is a plain string,
+     * so no migration is needed.
+     */
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_PENDING_REVIEW = 'pending';
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_REJECTED = 'rejected';
+    public const STATUS_TERMINATED = 'terminated';
+
     public function isDraft(): bool
     {
-        return $this->status === 'draft';
+        return $this->status === self::STATUS_DRAFT;
     }
 
     public function isPublished(): bool
     {
-        return $this->status === 'active';
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function isPendingReview(): bool
+    {
+        return $this->status === self::STATUS_PENDING_REVIEW;
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === self::STATUS_REJECTED;
+    }
+
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            self::STATUS_PENDING_REVIEW => 'Pending review',
+            self::STATUS_REJECTED => 'Rejected',
+            self::STATUS_DRAFT => 'Draft',
+            self::STATUS_TERMINATED => 'Terminated',
+            default => 'Active',
+        };
     }
 }

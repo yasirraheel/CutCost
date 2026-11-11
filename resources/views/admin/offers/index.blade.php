@@ -18,10 +18,22 @@
                 <div class="col-1 text-right">@include('admin.partials.brand-icon', ['brand' => $offer->brand, 'fallback' => '🎟️'])</div>
                 <div class="col">
                     <strong>{{ $offer->title }}</strong>
-                    <div class="text-muted text-sm">{{ $offer->currency }} {{ number_format($offer->price, 2) }} · {{ $offer->brand?->name ?? 'No brand' }} · {{ $offer->seller_name ?? 'No seller' }} · {{ $offer->seats_available !== null ? $offer->seats_available.' seats left' : 'Seats unknown' }} · {{ $offer->is_active ? 'Active' : 'Inactive' }}</div>
+                    <div class="text-muted text-sm">{{ $offer->currency }} {{ number_format($offer->price, 2) }} · {{ $offer->brand?->name ?? 'No brand' }} · {{ $offer->seller_name ?? 'No seller' }} · {{ $offer->seats_available !== null ? $offer->seats_available.' seats left' : 'Seats unknown' }} · {{ $offer->is_active ? 'Active' : 'Inactive' }} · {{ $offer->statusLabel() }}</div>
                 </div>
                 <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right">
-                    @include('admin.partials.row-actions', ['editUrl' => route('admin.offers.edit', $offer), 'deleteUrl' => route('admin.offers.destroy', $offer), 'deleteConfirm' => 'Delete this offer permanently?'])
+                    <div class="d-flex align-items-center justify-content-md-end" style="gap: 8px;">
+                        @if ($offer->isPendingReview())
+                            <form class="d-inline m-0" method="POST" action="{{ route('admin.offers.approve', $offer) }}">
+                                @csrf
+                                <button type="submit" class="btn btn-light btn-sm">Approve</button>
+                            </form>
+                            <form class="d-inline m-0" method="POST" action="{{ route('admin.offers.reject', $offer) }}">
+                                @csrf
+                                <button type="submit" class="btn-sharesub red outline small">Reject</button>
+                            </form>
+                        @endif
+                        @include('admin.partials.row-actions', ['editUrl' => route('admin.offers.edit', $offer), 'deleteUrl' => route('admin.offers.destroy', $offer), 'deleteConfirm' => 'Delete this offer permanently?'])
+                    </div>
                 </div>
             </li>
         @empty

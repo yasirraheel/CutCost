@@ -832,7 +832,17 @@ class CreateSubscriptionController extends Controller
         if ($offer->friends === null || (int) $offer->friends < 1 || (int) $offer->friends > $maxUsers) {
             $errors['friends'] = 'Choose how many seats you offer.';
         }
-        if ($offer->total_seats === null || (int) $offer->total_seats < 2 || (int) $offer->total_seats > $maxUsers) {
+        // Total seats are the whole plan (owner included) and come from
+        // the template's own seat count, not from the shareable cap, which
+        // bounds only the offered seats (friends). Spotify Premium Family
+        // declares 6 seats of which 5 are shareable: capping total_seats
+        // at 5 rejected every such publish even though the draft already
+        // held the template's own 6. Without a template the cap is the
+        // same maxUsers the Price step enforces on its total seats input.
+        $maxTotalSeats = $offer->template !== null && $offer->template->seats !== null
+            ? min(self::MAX_USERS, (int) $offer->template->seats)
+            : $maxUsers;
+        if ($offer->total_seats === null || (int) $offer->total_seats < 2 || (int) $offer->total_seats > $maxTotalSeats) {
             $errors['total_seats'] = 'Choose the total number of seats.';
         }
         if ($offer->total_price === null || (float) $offer->total_price <= 0) {
@@ -904,7 +914,9 @@ class CreateSubscriptionController extends Controller
             (int) $offer->friends,
             (int) $offer->total_seats,
         );
-        $offer->status = 'active';
+        // A newly published subscription goes to the admin for review
+        // instead of going live by itself.
+        $offer->status = Offer::STATUS_PENDING_REVIEW;
         $offer->is_active = true;
         $offer->save();
     }

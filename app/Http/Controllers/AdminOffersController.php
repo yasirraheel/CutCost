@@ -60,6 +60,32 @@ class AdminOffersController extends Controller
         return redirect()->route('admin.offers.edit', $offer)->with('status', 'Offer has been updated.');
     }
 
+    /**
+     * Approve a pending offer: it goes live as an active offer. The
+     * original captures show no approval step for shared
+     * subscriptions, so this follows the app's existing KYC
+     * approve/reject pattern and the user's own words.
+     */
+    public function approve(Offer $offer)
+    {
+        $offer->status = Offer::STATUS_ACTIVE;
+        $offer->save();
+
+        return redirect()->route('admin.offers.index')->with('status', 'Offer has been approved.');
+    }
+
+    /**
+     * Reject a pending offer: it stays visible as rejected in the
+     * admin list and in the user's shared list, it does not disappear.
+     */
+    public function reject(Offer $offer)
+    {
+        $offer->status = Offer::STATUS_REJECTED;
+        $offer->save();
+
+        return redirect()->route('admin.offers.index')->with('status', 'Offer has been rejected.');
+    }
+
     public function destroy(Offer $offer)
     {
         $offer->delete();

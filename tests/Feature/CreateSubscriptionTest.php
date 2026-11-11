@@ -144,7 +144,7 @@ class CreateSubscriptionTest extends TestCase
 
         $offer = Offer::where('user_id', $user->id)->first();
         $this->assertNotNull($offer);
-        $this->assertSame('active', $offer->status);
+        $this->assertSame('pending', $offer->status);
         $this->assertTrue($offer->is_active);
         $this->assertSame($brand->id, (int) $offer->brand_id);
         $this->assertSame($template->id, (int) $offer->template_id);
@@ -203,7 +203,7 @@ class CreateSubscriptionTest extends TestCase
 
         $offer = Offer::where('user_id', $user->id)->first();
         $this->assertNotNull($offer);
-        $this->assertSame('active', $offer->status);
+        $this->assertSame('pending', $offer->status);
         $this->assertNull($offer->brand_id);
         $this->assertTrue($offer->custom_price);
         $this->assertSame($category->id, (int) $offer->category_id);
@@ -295,7 +295,7 @@ class CreateSubscriptionTest extends TestCase
             'accept_tos' => 1,
         ])->assertRedirect('/en/my-shared-subscriptions');
 
-        $this->assertSame('active', $offer->fresh()->status);
+        $this->assertSame('pending', $offer->fresh()->status);
     }
 
     public function test_get_brands_returns_db_backed_json(): void

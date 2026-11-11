@@ -134,6 +134,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('en/admin')->group(function ()
     Route::resource('reassurance', AdminReassuranceController::class)->names('admin.reassurance')->parameters(['reassurance' => 'reassuranceItem'])->except('show');
     Route::resource('brand-faqs', AdminBrandFaqsController::class)->names('admin.brand-faqs')->parameters(['brand-faqs' => 'brandFaq'])->except('show');
     Route::resource('offers', AdminOffersController::class)->names('admin.offers')->parameters(['offers' => 'offer'])->except('show');
+    Route::post('/offers/{offer}/approve', [AdminOffersController::class, 'approve'])->name('admin.offers.approve');
+    Route::post('/offers/{offer}/reject', [AdminOffersController::class, 'reject'])->name('admin.offers.reject');
     Route::resource('pages', AdminPagesController::class)->names('admin.pages')->parameters(['pages' => 'page'])->except('show');
     Route::get('/{section}', [AdminPanelController::class, 'show'])
         ->where('section', 'dashboard|shared-subscriptions|joined-subscriptions|waiting-list|wallet|cards|account|settings|chat');

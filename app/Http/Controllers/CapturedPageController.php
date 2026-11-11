@@ -3141,6 +3141,7 @@ class CapturedPageController extends Controller
             .'</div>'."\n"
             .'<div class="subscriptions-item-states">'."\n"
             .'<span class="pill pill-navy">'.e($this->sharedOfferVisibilityLabel($offer)).'</span>'."\n"
+            .$this->sharedOfferStatusPill($offer)
             .'<span class="pill pill-green">'."\n"
             .'Created on '.$created.'    </span>'."\n"
             .'</div>'."\n"
@@ -3180,6 +3181,23 @@ class CapturedPageController extends Controller
             0 => 'Private',
             2 => 'Nearby',
             default => 'Public',
+        };
+    }
+
+    /**
+     * Review status pill for a shared offer row, in the list's own
+     * pill markup and classes (pill-warning and pill-danger already
+     * exist in the captured CSS). A pending offer shows the user's
+     * own words, "Being reviewed", until an admin approves it; a
+     * rejected offer shows Rejected instead of disappearing. Active
+     * and draft offers get no extra pill, exactly as before.
+     */
+    protected function sharedOfferStatusPill(mixed $offer): string
+    {
+        return match ((string) ($offer->status ?? '')) {
+            Offer::STATUS_PENDING_REVIEW => '<span class="pill pill-warning">Being reviewed</span>'."\n",
+            Offer::STATUS_REJECTED => '<span class="pill pill-danger">Rejected</span>'."\n",
+            default => '',
         };
     }
 
