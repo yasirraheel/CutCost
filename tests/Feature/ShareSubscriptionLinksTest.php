@@ -44,6 +44,7 @@ class ShareSubscriptionLinksTest extends TestCase
             'Share my subscription',
             'Propose a subscription',
             'Create subscription',
+            'Create a shared Subscription',
             'Share a Subscription',
             'Got free spots? Share your subscription',
             'I\'m sharing my subscription',
@@ -159,7 +160,7 @@ class ShareSubscriptionLinksTest extends TestCase
 
         $shared = $this->get('/en/my-shared-subscriptions')->assertOk()->getContent();
         $this->assertNoDeadShareLinks($shared, 'my shared subscriptions');
-        $this->assertShareLinkPointsAtWizard($shared, 'Create subscription', 'my shared subscriptions');
+        $this->assertShareLinkPointsAtWizard($shared, 'Create a shared Subscription', 'my shared subscriptions');
         $this->assertShareLinkPointsAtWizard($shared, 'Propose a subscription', 'my shared subscriptions');
     }
 

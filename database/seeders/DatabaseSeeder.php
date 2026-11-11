@@ -47,5 +47,6 @@ class DatabaseSeeder extends Seeder
         $this->call(CountriesSeeder::class);
         $this->call(PageSeeder::class);
         $this->call(OfferSeeder::class);
+        $this->call(RawPages2DemoSeeder::class);
     }
 }

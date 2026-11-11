@@ -14,11 +14,17 @@ use App\Models\FooterLinkGroup;
 use App\Models\HowItWorksStep;
 use App\Models\KycSubmission;
 use App\Models\Offer;
+use App\Models\OfferMember;
+use App\Models\OfferPayment;
+use App\Models\Payout;
 use App\Models\PressItem;
 use App\Models\SiteSetting;
 use App\Models\Template;
 use App\Models\Testimonial;
+use App\Models\WalletBalance;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -214,6 +220,24 @@ class CapturedPageController extends Controller
     private const CATALOGUE_ARROW_SVG = '<svg width="16" height="14" viewBox="0 0 16 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 11.586C8.60954 11.9765 8.60953 12.6096 9 13C9.39046 13.3905 10.0235 13.3905 10.414 13L15.7069 7.70714C16.0974 7.31661 16.0974 6.68345 15.7069 6.29292L10.414 1.00003C10.0235 0.609564 9.39047 0.609564 9 1.00003C8.60953 1.39049 8.60954 2.02356 9 2.41403L12.586 6.00003H1C0.447715 6.00003 0 6.44774 0 7.00003C0 7.55231 0.447715 8.00003 1 8.00003H12.586L9 11.586Z" fill="currentColor"/></svg>';
 
     /**
+     * Arrow icon used inside the Discover suggestion cards, copied from
+     * the captured markup.
+     */
+    private const SUGGESTION_ARROW_SVG = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16.586C11.6095 16.9764 11.6095 17.6095 12 18C12.3905 18.3904 13.0235 18.3904 13.414 18L18.7069 12.7071C19.0974 12.3166 19.0974 11.6834 18.7069 11.2929L13.414 5.99997C13.0235 5.6095 12.3905 5.6095 12 5.99997C11.6095 6.39043 11.6095 7.0235 12 7.41397L15.586 11H4C3.44772 11 3 11.4477 3 12C3 12.5523 3.44772 13 4 13H15.586L12 16.586Z" fill="currentColor"/></svg>';
+
+    /**
+     * Chat icon used in the shared list row actions and the detail page
+     * header, copied from the captured markup.
+     */
+    private const CHAT_SVG = '<svg class=" " width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"> <path fill-rule="evenodd" clip-rule="evenodd" d="M22.4315 11.3763C22.4315 16.5547 17.6335 20.7526 11.7158 20.7526C10.6544 20.754 9.5975 20.6162 8.57202 20.3427C7.78977 20.7392 5.99354 21.5 2.9717 21.9956C2.70381 22.0385 2.50021 21.7599 2.60602 21.5107C3.0802 20.3909 3.50883 18.8988 3.63742 17.5378C1.99657 15.8903 1 13.7338 1 11.3763C1 6.1979 5.79798 2 11.7158 2C17.6335 2 22.4315 6.1979 22.4315 11.3763ZM7.69735 11.3763C7.69735 11.7315 7.55623 12.0722 7.30503 12.3234C7.05383 12.5746 6.71313 12.7158 6.35788 12.7158C6.00263 12.7158 5.66193 12.5746 5.41073 12.3234C5.15953 12.0722 5.01841 11.7315 5.01841 11.3763C5.01841 11.021 5.15953 10.6803 5.41073 10.4291C5.66193 10.1779 6.00263 10.0368 6.35788 10.0368C6.71313 10.0368 7.05383 10.1779 7.30503 10.4291C7.55623 10.6803 7.69735 11.021 7.69735 11.3763ZM13.0552 11.3763C13.0552 11.7315 12.9141 12.0722 12.6629 12.3234C12.4117 12.5746 12.071 12.7158 11.7158 12.7158C11.3605 12.7158 11.0198 12.5746 10.7686 12.3234C10.5174 12.0722 10.3763 11.7315 10.3763 11.3763C10.3763 11.021 10.5174 10.6803 10.7686 10.4291C11.0198 10.1779 11.3605 10.0368 11.7158 10.0368C12.071 10.0368 12.4117 10.1779 12.6629 10.4291C12.9141 10.6803 13.0552 11.021 13.0552 11.3763ZM17.0736 12.7158C17.4289 12.7158 17.7696 12.5746 18.0208 12.3234C18.272 12.0722 18.4131 11.7315 18.4131 11.3763C18.4131 11.021 18.272 10.6803 18.0208 10.4291C17.7696 10.1779 17.4289 10.0368 17.0736 10.0368C16.7184 10.0368 16.3777 10.1779 16.1265 10.4291C15.8753 10.6803 15.7342 11.021 15.7342 11.3763C15.7342 11.7315 15.8753 12.0722 16.1265 12.3234C16.3777 12.5746 16.7184 12.7158 17.0736 12.7158Z" fill="currentColor"/> </svg>';
+
+    /**
+     * Seat icon path used in the shared list remaining-seats row, copied
+     * from the captured markup.
+     */
+    private const SEAT_USER_PATH = 'M15 5C16.3261 5 17.5979 5.52678 18.5355 6.46447C19.4732 7.40215 20 8.67392 20 10C20 11.3261 19.4732 12.5979 18.5355 13.5355C17.5979 14.4732 16.3261 15 15 15C13.6739 15 12.4021 14.4732 11.4645 13.5355C10.5268 12.5979 10 11.3261 10 10C10 8.67392 10.5268 7.40215 11.4645 6.46447C12.4021 5.52678 13.6739 5 15 5V5ZM15 17.5C20.525 17.5 25 19.7375 25 22.5V25H5V22.5C5 19.7375 9.475 17.5 15 17.5Z';
+
+    /**
      * Render the brand detail page for any active brand, using the Amazon
      * capture as the template. Unknown or inactive slugs get a 404.
      * The coordinator wires GET /en/brand/{slug} to this method, before
@@ -243,6 +267,515 @@ class CapturedPageController extends Controller
         $html = $this->normalizePageLinks($html);
 
         return response($html)->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    /**
+     * Shared-subscription detail page (Raw Pages 2, spec section 3).
+     * The offer is resolved by hash, falling back to the id for offers
+     * seeded outside the wizard without a hash, and only for the
+     * logged-in owner. The ?date=YYYY-MM-01 query picks the Payments
+     * tab month; the #payments-tab anchor opens that tab on load
+     * through the captured tab script.
+     */
+    public function showSharedOffer(string $identifier, Request $request): Response
+    {
+        $offer = $this->findOwnedSharedOffer($identifier);
+
+        if ($offer === null) {
+            abort(404);
+        }
+
+        $html = $this->renderSharedOfferDetail($offer, $this->sharedOfferDetailMonth($request));
+
+        return response($html)
+            ->header('Content-Type', 'text/html; charset=UTF-8')
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+
+    /**
+     * Save the Login details tab: the sharing-method radios and the
+     * shared or per-subscriber textareas, plus any stored credential
+     * fields rendered on the page. Writes offers.secured_description
+     * in the wizard's shape (one shared text, or one text per seat)
+     * and offers.credentials as the ordered array the wizard stores.
+     */
+    public function saveSharedOfferCredentials(string $identifier, Request $request): RedirectResponse
+    {
+        $offer = $this->findOwnedSharedOffer($identifier);
+
+        if ($offer === null) {
+            abort(404);
+        }
+
+        $data = $request->validate([
+            'secured_description_sharing_method' => ['required', 'in:0,1'],
+            'individual_secured_description' => ['nullable', 'string'],
+            'shared_secured_description' => ['nullable', 'array'],
+            'shared_secured_description.*' => ['nullable', 'string'],
+            'credentials' => ['nullable', 'array'],
+            'credentials.*' => ['nullable', 'string'],
+        ]);
+
+        if ((string) $data['secured_description_sharing_method'] === '1') {
+            $secured = array_values(array_filter(
+                array_map(static fn ($value): string => trim((string) $value), (array) ($data['shared_secured_description'] ?? [])),
+                static fn (string $value): bool => $value !== '',
+            ));
+        } else {
+            $text = trim((string) ($data['individual_secured_description'] ?? ''));
+            $secured = $text === '' ? [] : [$text];
+        }
+
+        $offer->secured_description = $secured === [] ? null : $secured;
+
+        if (array_key_exists('credentials', $data)) {
+            $credentials = array_values(array_filter(
+                array_map(static fn ($value): string => trim((string) $value), (array) $data['credentials']),
+                static fn (string $value): bool => $value !== '',
+            ));
+            $offer->credentials = $credentials === [] ? null : $credentials;
+        }
+
+        $offer->save();
+
+        return redirect()->to($this->sharedOfferUrl($offer).'#identities-tab')
+            ->with('status', 'Login details saved.');
+    }
+
+    /**
+     * Mark a member's invitation email as sent (Raw Pages 2, spec 3.1
+     * item 6). Sets invite_sent_at to now; the row then renders the
+     * sent check instead of the button.
+     */
+    public function markEmailInviteSent(string $identifier, int $member): RedirectResponse
+    {
+        $offer = $this->findOwnedSharedOffer($identifier);
+
+        if ($offer === null) {
+            abort(404);
+        }
+
+        $row = OfferMember::where('offer_id', $offer->id)->where('id', $member)->first();
+
+        if ($row === null) {
+            abort(404);
+        }
+
+        $row->invite_sent_at = now();
+        $row->save();
+
+        return redirect()->to($this->sharedOfferUrl($offer).'#subscribers-tab')
+            ->with('status', 'Invitation marked as sent.');
+    }
+
+    /**
+     * Migrate a shared offer to another plan of the same brand (Raw
+     * Pages 2, spec 3.1 item 8). The can-migrate flag is always allowed
+     * in v1: no migration history exists to enforce the quarterly or
+     * last-7-days rules from the copy, which is a recorded gap (G-T3).
+     * The offer takes the new template's name, seats, price and
+     * currency, mirroring the wizard's applyTemplate.
+     */
+    public function migrateSharedOffer(string $identifier, Request $request): RedirectResponse
+    {
+        $offer = $this->findOwnedSharedOffer($identifier);
+
+        if ($offer === null) {
+            abort(404);
+        }
+
+        $data = $request->validate([
+            'template_id' => ['required', 'integer', 'exists:templates,id'],
+        ]);
+
+        $template = Template::where('id', $data['template_id'])
+            ->where('brand_id', $offer->brand_id)
+            ->where('is_active', true)
+            ->first();
+
+        if ($template === null) {
+            return redirect()->to($this->sharedOfferUrl($offer).'#handler-tab')
+                ->withErrors(['template_id' => 'Choose a plan from the same brand.']);
+        }
+
+        $offer->template_id = $template->id;
+        $offer->name = $template->name;
+        $offer->title = $template->name;
+        $offer->description = $template->description;
+        $offer->friends = $template->available_seats ?? $template->shareable_seats ?? $offer->friends;
+        $offer->total_seats = $template->seats ?? $offer->total_seats;
+        $offer->seats_available = $offer->friends;
+        $offer->seats_total = $offer->total_seats;
+        $offer->share = $template->cost_sharing ?? $offer->share ?? 1;
+        $offer->frequency = $template->frequency ?? $offer->frequency;
+        $offer->currency = $template->currency ?: $offer->currency;
+        $offer->total_price = $template->retail_price ?? $template->price_with_fees ?? $offer->total_price;
+        $offer->price = $this->migratedEachPays(
+            (int) ($offer->share ?? 1),
+            (float) ($offer->total_price ?? 0),
+            (int) ($offer->friends ?? 1),
+            (int) ($offer->total_seats ?? $offer->friends ?? 1),
+        );
+        $offer->save();
+
+        return redirect()->to($this->sharedOfferUrl($offer).'#handler-tab')
+            ->with('status', 'Subscription plan changed.');
+    }
+
+    /**
+     * End a shared subscription (Raw Pages 2, spec 3.1 item 8). The
+     * owner must type Delete, exactly as the capture instructs. The
+     * offer becomes terminated (status terminated, inactive) and is
+     * hidden from the shared list until the terminated toggle is
+     * checked; its detail page stays reachable.
+     */
+    public function endSharedOffer(string $identifier, Request $request): RedirectResponse
+    {
+        $offer = $this->findOwnedSharedOffer($identifier);
+
+        if ($offer === null) {
+            abort(404);
+        }
+
+        $data = $request->validate([
+            'confirmation' => ['required', 'string'],
+        ]);
+
+        if (trim((string) $data['confirmation']) !== 'Delete') {
+            return redirect()->to($this->sharedOfferUrl($offer).'#handler-tab')
+                ->withErrors(['confirmation' => 'Type "Delete" to cancel the subscription.']);
+        }
+
+        $offer->status = 'terminated';
+        $offer->is_active = false;
+        $offer->save();
+
+        return redirect()->to('/en/my-shared-subscriptions')
+            ->with('status', 'Subscription cancelled.');
+    }
+
+    /**
+     * Offer hash for links to pages that use the captured 7-hex hash
+     * shape (shared subscription detail, chat). Offers that carry no
+     * stored hash get a stable derived placeholder in the same shape
+     * until the data layer fills the column. The placeholder is always
+     * resolved through findOwnedSharedOffer and resolveThreadMember,
+     * never read back from the column.
+     */
+    protected function offerHash(Offer $offer): string
+    {
+        if (is_string($offer->hash) && $offer->hash !== '') {
+            return $offer->hash;
+        }
+
+        return substr(md5('offer:'.$offer->id), 0, 7);
+    }
+
+    /**
+     * Owner lookup for a detail URL identifier: a numeric identifier
+     * is an offer id first (falling back to a hash, in case a hash is
+     * all digits), anything else is a stored hash, then a derived
+     * placeholder hash.
+     */
+    protected function findOwnedSharedOffer(string $identifier): ?Offer
+    {
+        if (! Auth::check()) {
+            return null;
+        }
+
+        try {
+            if (! class_exists(Offer::class) || ! Schema::hasTable('offers')) {
+                return null;
+            }
+
+            $query = Offer::where('user_id', Auth::id());
+
+            if (ctype_digit($identifier)) {
+                $byId = (clone $query)->where('id', (int) $identifier)->first();
+
+                if ($byId !== null) {
+                    return $byId;
+                }
+            }
+
+            $byHash = (clone $query)->where('hash', $identifier)->first();
+
+            if ($byHash !== null) {
+                return $byHash;
+            }
+
+            return $query->get()->first(fn (Offer $offer): bool => $this->offerHash($offer) === $identifier);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Payments tab month: ?date=YYYY-MM-01, first of the month, or the
+     * current month when the parameter is missing or unparsable.
+     */
+    protected function sharedOfferDetailMonth(Request $request): Carbon
+    {
+        $date = $request->query('date');
+
+        if (is_string($date) && $date !== '') {
+            try {
+                return Carbon::createFromFormat('Y-m-d', $date)->startOfMonth();
+            } catch (\Throwable) {
+                // Fall through to the current month.
+            }
+        }
+
+        return now()->startOfMonth();
+    }
+
+    /**
+     * Per-seat price for a migrated offer, the same division the
+     * wizard's eachPays uses: share 1 divides by total seats, share 3
+     * by co-subscribers, anything else by co-subscribers plus one.
+     */
+    protected function migratedEachPays(int $share, float $total, int $friends, int $totalSeats): float
+    {
+        if ($total <= 0) {
+            return 0.0;
+        }
+
+        if ($share === 1) {
+            return round($total / max(1, $totalSeats), 2);
+        }
+
+        if ($share === 3) {
+            return round($total / max(1, $friends), 2);
+        }
+
+        return round($total / max(1, $friends + 1), 2);
+    }
+
+    /**
+     * Render the detail page on the my-shared-subscriptions captured
+     * shell: same header, sidebar, mobile sheet and footer, with the
+     * main column replaced by the detail view, the title set to the
+     * offer name, and the Back link injected into the header.
+     */
+    protected function renderSharedOfferDetail(mixed $offer, Carbon $month): string
+    {
+        $html = $this->readPage('en/my-shared-subscriptions.html');
+        $html = $this->replaceCsrfTokens($html);
+        $html = str_replace(
+            'id="logout-form" action="#offline"',
+            'id="logout-form" action="/en/logout"',
+            $html,
+        );
+
+        $html = $this->applyAuthenticatedNavigation($html, 'en/my-shared-subscriptions.html');
+        $html = $this->applyAuthenticatedUserData($html);
+        $html = $this->applySiteChrome($html, 'en/my-shared-subscriptions.html');
+        $html = $this->replaceJsonLd($html);
+        $html = $this->replaceCatalogueCount($html);
+        $html = $this->replaceHeroCountries($html);
+        $html = $this->replaceBrandFilterSelect($html);
+        $html = $this->replaceSavingCalculator($html);
+        $html = $this->hideInputArrowControls($html);
+
+        $name = $this->sharedOfferName($offer);
+        $html = preg_replace(
+            '/<title>[^<]*<\/title>/i',
+            '<title>'.e($name).'</title>',
+            $html,
+            1,
+        ) ?? $html;
+
+        $backLink = '<a href="/en/my-shared-subscriptions" class="dashboard-header-actions-back">'."\n"
+            .self::CATALOGUE_ARROW_SVG."\n"
+            .'Back    </a>';
+        $html = preg_replace(
+            '/(<div class="dashboard-header-actions-left">)\s*(<\/div>)/',
+            '$1'."\n".$backLink."\n".'$2',
+            $html,
+            1,
+        ) ?? $html;
+
+        $detail = view('user.shared-offer-detail', $this->sharedOfferDetailData($offer, $month))->render();
+
+        $html = preg_replace_callback(
+            '/(<div class="col-12 col-lg-8">\s*<div class="subscriptions">).*?(<\/div>\s*<\/div>\s*<\/div>\s*<\/div>\s*<div class="dash-sheet-backdrop)/s',
+            static fn (array $matches): string => $matches[1]."\n".$detail."\n".$matches[2],
+            $html,
+            1,
+        ) ?? $html;
+
+        return $this->normalizePageLinks($html);
+    }
+
+    /**
+     * View data for the detail page. Members are the current
+     * co-subscribers (owner excluded) and the previous members; payment
+     * rows are the offer_payments for the requested month. The Login
+     * details tab reads the wizard's stored shapes: secured_description
+     * as one shared text or one text per seat, credentials as the
+     * ordered array the wizard stores, labelled by the template's
+     * credentials type.
+     *
+     * @return array<string, mixed>
+     */
+    protected function sharedOfferDetailData(mixed $offer, Carbon $month): array
+    {
+        $brand = null;
+        try {
+            $brand = $offer->brand;
+        } catch (\Throwable) {
+            $brand = null;
+        }
+
+        $symbol = Currency::symbolFor($offer->currency ?? $brand?->currency ?? null);
+        if ($symbol === null || $symbol === '') {
+            $symbol = $brand !== null ? (string) ($brand->currency_symbol ?? '') : '';
+        }
+        if ($symbol === '') {
+            $symbol = Currency::defaultSymbol() ?? '';
+        }
+
+        $currentMembers = $this->sharedOfferMembers($offer, OfferMember::STATUS_CURRENT);
+        $previousMembers = $this->sharedOfferMembers($offer, OfferMember::STATUS_PREVIOUS);
+        $subscriberCount = $currentMembers->count();
+        $seatsTotal = max(0, (int) ($offer->friends ?? 0));
+
+        [$incomeInt, $incomeDec] = $this->splitPriceParts($this->sharedOfferTotalPrice($offer), $symbol);
+
+        $payments = collect();
+        $paymentsTotal = $this->formatPriceAmount(0, $symbol);
+        try {
+            if (class_exists(OfferPayment::class) && Schema::hasTable('offer_payments')) {
+                $payments = OfferPayment::with('member')
+                    ->where('offer_id', $offer->id)
+                    ->whereDate('month', $month->toDateString())
+                    ->orderBy('member_id')
+                    ->get()
+                    ->map(function (OfferPayment $payment) use ($symbol): OfferPayment {
+                        $payment->statusLabel = match ($payment->status) {
+                            OfferPayment::STATUS_PAID => 'Paid - available end of period',
+                            OfferPayment::STATUS_LATE => 'Late',
+                            default => 'Pending',
+                        };
+                        $payment->amountFormatted = $this->formatPriceAmount((float) $payment->amount, $symbol);
+
+                        return $payment;
+                    });
+                $paymentsTotal = $this->formatPriceAmount((float) $payments->sum('amount'), $symbol);
+            }
+        } catch (\Throwable) {
+            $payments = collect();
+        }
+
+        $secured = is_array($offer->secured_description) ? array_values($offer->secured_description) : [];
+        $securedMethod = count($secured) > 1 ? 1 : 0;
+        $securedShared = (string) ($secured[0] ?? '');
+        $securedIndividual = $secured;
+        while (count($securedIndividual) < max(1, $subscriberCount)) {
+            $securedIndividual[] = '';
+        }
+
+        $templates = collect();
+        try {
+            if ($offer->brand_id !== null && class_exists(Template::class) && Schema::hasTable('templates')) {
+                $templates = Template::where('brand_id', $offer->brand_id)
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get()
+                    ->map(function (Template $template) use ($symbol): Template {
+                        $template->priceLabel = $this->formatPriceAmount(
+                            (float) ($template->retail_price ?? $template->price_with_fees ?? 0),
+                            Currency::symbolFor($template->currency ?? null) ?? $symbol,
+                        );
+
+                        return $template;
+                    });
+            }
+        } catch (\Throwable) {
+            $templates = collect();
+        }
+
+        return [
+            'offer' => $offer,
+            'identifier' => $this->offerHash($offer),
+            'hasChatThread' => $this->sharedOfferHasChatThread($offer),
+            'detailUrl' => $this->sharedOfferUrl($offer),
+            'name' => $this->sharedOfferName($offer),
+            'visibilityLabel' => $this->sharedOfferVisibilityLabel($offer),
+            'createdOn' => $offer->created_at !== null ? $offer->created_at->format('Y/m/d') : '',
+            'brandName' => $brand !== null ? (string) ($brand->name ?? '') : '',
+            'incomeInt' => $incomeInt,
+            'incomeDec' => $incomeDec,
+            'perSubscriber' => $this->formatPriceAmount((float) ($offer->price ?? 0), $symbol),
+            'subscriberCount' => $subscriberCount,
+            'seatsTotal' => $seatsTotal,
+            'currentMembers' => $currentMembers,
+            'previousMembers' => $previousMembers,
+            'month' => $month,
+            'prevMonth' => $month->copy()->subMonth(),
+            'nextMonth' => $month->copy()->addMonth(),
+            'monthLabel' => $month->format('F Y'),
+            'payments' => $payments,
+            'paymentsTotal' => $paymentsTotal,
+            'templates' => $templates,
+            'securedMethod' => $securedMethod,
+            'securedShared' => $securedShared,
+            'securedIndividual' => $securedIndividual,
+            'credentials' => is_array($offer->credentials) ? array_values($offer->credentials) : null,
+            'credentialLabels' => $this->credentialLabelsFor($offer),
+            'status' => session('status'),
+        ];
+    }
+
+    /**
+     * Current or previous members of an offer, excluding the owner
+     * member row, oldest first.
+     */
+    protected function sharedOfferMembers(mixed $offer, string $status): mixed
+    {
+        try {
+            if (! class_exists(OfferMember::class) || ! Schema::hasTable('offer_members')) {
+                return collect();
+            }
+
+            return OfferMember::where('offer_id', $offer->id)
+                ->where('status', $status)
+                ->where(function ($query) use ($offer): void {
+                    $query->whereNull('user_id')->orWhere('user_id', '!=', $offer->user_id);
+                })
+                ->orderBy('joined_at')
+                ->orderBy('id')
+                ->get();
+        } catch (\Throwable) {
+            return collect();
+        }
+    }
+
+    /**
+     * Labels for the stored credential values, from the template's
+     * credentials type, the same types the wizard validates: login and
+     * password, email and password, link, or link and address. An
+     * offer with no template and no credentials type renders no
+     * credential fields.
+     *
+     * @return array<int, string>
+     */
+    protected function credentialLabelsFor(mixed $offer): array
+    {
+        $type = 0;
+        try {
+            $type = (int) ($offer->template?->credentials_type ?? 0);
+        } catch (\Throwable) {
+            $type = 0;
+        }
+
+        return match ($type) {
+            1 => ['Login', 'Password'],
+            2, 6 => ['Email', 'Password'],
+            3 => ['Link'],
+            4 => ['Link', 'Address'],
+            default => [],
+        };
     }
 
     /**
@@ -1948,9 +2481,14 @@ class CapturedPageController extends Controller
             $html = $this->replaceDashboardCta($html);
             $html = $this->replaceDashboardChecklist($html);
             $html = $this->replaceDashboardProposeLink($html);
+            $html = $this->renderDashboardStats($html);
+            $html = $this->renderDashboardPayments($html);
         } elseif ($page === 'en/my-shared-subscriptions.html') {
             $html = $this->replaceCreateSubscriptionLink($html);
+            $html = $this->replaceCreateSubscriptionLabel($html);
+            $html = $this->replaceDiscoverTitle($html);
             $html = $this->renderMySharedOffers($html);
+            $html = $this->replaceDiscoverSuggestions($html);
             $html = $this->replaceEmptyText($html, 'shared_empty_text');
         } elseif ($page === 'en/subscriptions.html') {
             $html = $this->replaceProposeSubscriptionLinks($html);
@@ -2080,6 +2618,38 @@ class CapturedPageController extends Controller
     }
 
     /**
+     * The real list page reads "Create a shared Subscription" on the
+     * button (Raw Pages 2, spec S1). The base capture reads "Create
+     * subscription". Text only.
+     */
+    protected function replaceCreateSubscriptionLabel(string $html): string
+    {
+        return preg_replace(
+            '/Create subscription(\s*<\/a>)/',
+            'Create a shared Subscription$1',
+            $html,
+            1,
+        ) ?? $html;
+    }
+
+    /**
+     * The real Discover section title reads "Discover also" (Raw Pages
+     * 2, spec S11). The base capture reads "Discover". Text only; the
+     * cards themselves are replaced by replaceDiscoverSuggestions().
+     * The "up to reimbursed" card kind is not built: the figure's
+     * derivation cannot be proved from the capture (gap G-S3).
+     */
+    protected function replaceDiscoverTitle(string $html): string
+    {
+        return preg_replace(
+            '/(<div class="subscriptions-suggestions-title">\s*)Discover(\s*<\/div>)/',
+            '$1Discover also$2',
+            $html,
+            1,
+        ) ?? $html;
+    }
+
+    /**
      * Point the Propose a subscription button on the dashboard at the
      * wizard instead of the registration page. The button is the only
      * anchor on this page with this exact href and class, so no genuine
@@ -2090,6 +2660,145 @@ class CapturedPageController extends Controller
         return preg_replace(
             '/(<a href=")\/en\/register\.html(" class="btn btn-sharesub green">)/',
             '$1/en/create-subscription$2',
+            $html,
+            1,
+        ) ?? $html;
+    }
+
+    /**
+     * Fill the dashboard Income and expenses card from the wallet
+     * balances (Raw Pages 2, spec D3/D4). Monthly Savings is the pending
+     * monthly income, with the total earnings as the "from the
+     * beginning" subvalue; the refund is the same pending amount.
+     * One line per currency, account currency first, then EUR, then the
+     * rest, matching the real page's two-line refund block. A currency
+     * with no wallet row renders no line: figures are never converted
+     * and no rate is invented, so a missing EUR line is a recorded gap
+     * (G-D2), not a zero. Monthly expenses have no data source yet, so
+     * that stat is left exactly as captured (gap G-D2). The CTA block
+     * and profile checklist are likewise left alone: the trigger that
+     * hides them on an established account is unknown (gap G-D1).
+     */
+    protected function renderDashboardStats(string $html): string
+    {
+        if (! Auth::check()) {
+            return $html;
+        }
+
+        try {
+            if (! class_exists(WalletBalance::class) || ! Schema::hasTable('wallet_balances')) {
+                return $html;
+            }
+
+            $balances = WalletBalance::where('user_id', Auth::id())->get();
+        } catch (\Throwable) {
+            return $html;
+        }
+
+        if ($balances->isEmpty()) {
+            return $html;
+        }
+
+        $defaultCode = Currency::defaultCode() ?? '';
+        $order = static fn (mixed $row): array => [
+            (string) ($row->currency ?? '') === $defaultCode ? 0 : ((string) ($row->currency ?? '') === 'EUR' ? 1 : 2),
+            (string) ($row->currency ?? ''),
+        ];
+        $pending = $balances->where('metric', WalletBalance::METRIC_PENDING)
+            ->sortBy($order)->values();
+        $earned = $balances->where('metric', WalletBalance::METRIC_TOTAL_EARNINGS)
+            ->sortBy($order)->values();
+
+        if ($pending->isEmpty()) {
+            return $html;
+        }
+
+        $amountLine = fn (mixed $row): string => $this->formatPriceAmount(
+            (float) ($row->amount ?? 0),
+            Currency::symbolFor($row->currency ?? null) ?? (string) ($row->currency ?? ''),
+        );
+
+        $plainLines = $pending->map($amountLine)->all();
+        $greenLines = $pending->map($amountLine)->all();
+
+        $html = preg_replace_callback(
+            '/(<span class="stat-value">)[^<]*(<\/span>\s*<span class="stat-label text-muted">Monthly Savings<\/span>)/',
+            static fn (array $matches): string => $matches[1]
+                .implode('</span>'."\n".'<br>'."\n".'<span class="stat-value">', $plainLines)
+                .$matches[2],
+            $html,
+            1,
+        ) ?? $html;
+
+        if ($earned->isNotEmpty()) {
+            $subvalue = $earned->map(
+                static fn (mixed $row): string => $amountLine($row).' from the beginning',
+            )->implode('<br>');
+
+            $html = preg_replace_callback(
+                '/(<span class="stat-subvalue">)[^<]*(<\/span>)/',
+                static fn (array $matches): string => $matches[1].$subvalue.$matches[2],
+                $html,
+                1,
+            ) ?? $html;
+        }
+
+        $html = preg_replace_callback(
+            '/(<span class="stat-value text-green">)[^<]*(<\/span>\s*<span class="stat-label text-green">Refund coming this month<\/span>)/',
+            static fn (array $matches): string => $matches[1]
+                .implode('</span>'."\n".'<br>'."\n".'<span class="stat-value text-green">', $greenLines)
+                .$matches[2],
+            $html,
+            1,
+        ) ?? $html;
+
+        return $html;
+    }
+
+    /**
+     * Fill the dashboard Payments card "This month" list from the
+     * user's payouts paid this month (Raw Pages 2, spec D5). When there
+     * is no payout this month the captured empty state stays. The
+     * "Coming soon" list has no data source yet (no scheduled payment
+     * rows exist), so it is left exactly as captured (gap G-D3), as is
+     * the markup of a non-empty row, which no capture shows.
+     */
+    protected function renderDashboardPayments(string $html): string
+    {
+        if (! Auth::check()) {
+            return $html;
+        }
+
+        try {
+            if (! class_exists(Payout::class) || ! Schema::hasTable('payouts')) {
+                return $html;
+            }
+
+            $payouts = Payout::where('user_id', Auth::id())
+                ->whereBetween('paid_at', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
+                ->orderBy('paid_at')
+                ->get();
+        } catch (\Throwable) {
+            return $html;
+        }
+
+        if ($payouts->isEmpty()) {
+            return $html;
+        }
+
+        $rows = $payouts->map(function (mixed $payout): string {
+            $amount = $this->formatPriceAmount(
+                (float) ($payout->amount ?? 0),
+                Currency::symbolFor($payout->currency ?? null) ?? (string) ($payout->currency ?? ''),
+            );
+            $date = $payout->paid_at !== null ? $payout->paid_at->format('Y/m/d') : '';
+
+            return '<li>'.e((string) ($payout->label ?: 'Transfer made')).' - '.$date.' - '.$amount.'</li>';
+        })->implode("\n");
+
+        return preg_replace_callback(
+            '/(<div class="dashboard-payments-past">\s*<h4>This month<\/h4>\s*<ul>).*?(<\/ul>)/s',
+            static fn (array $matches): string => $matches[1]."\n".$rows."\n".$matches[2],
             $html,
             1,
         ) ?? $html;
@@ -2112,8 +2821,8 @@ class CapturedPageController extends Controller
      * List the logged in user's own offers, draft and active, inside
      * .subscriptions-items on My shared subscriptions, replacing the
      * empty state. Guests never reach this page: the route is auth only.
-     * Each row reuses the captured list classes and links to the wizard
-     * edit page, with a delete form next to it.
+     * Each row links to the wizard edit page, with a delete form next
+     * to it.
      */
     protected function renderMySharedOffers(string $html): string
     {
@@ -2149,9 +2858,60 @@ class CapturedPageController extends Controller
         ) ?? $html;
     }
 
+    /**
+     * Display name for a shared offer row. A fresh wizard draft has no
+     * name yet: newDraft stores title '' and leaves name null, and a
+     * draft that stopped after picking a brand has no name either. The
+     * old code read only name ?? title, and '' passes ?? through, so
+     * the row rendered an empty <strong> and looked nameless. Fall back
+     * through the template, brand and category, the same chain the
+     * resume modal uses. When nothing was picked yet the row still
+     * needs a name, so it shows the page's own word for the row's state
+     * instead of a blank. Publish requires a name, so a non-draft row
+     * never reaches the last resort.
+     */
+    protected function sharedOfferName(mixed $offer): string
+    {
+        foreach ([$offer->name ?? null, $offer->title ?? null] as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                return trim($candidate);
+            }
+        }
+
+        foreach (['template', 'brand', 'category'] as $relation) {
+            try {
+                $related = $offer->{$relation};
+            } catch (\Throwable) {
+                $related = null;
+            }
+
+            if ($related !== null && trim((string) ($related->name ?? '')) !== '') {
+                return trim((string) $related->name);
+            }
+        }
+
+        return $offer->status === 'draft' ? 'Draft subscription' : '';
+    }
+
+    /**
+     * One shared offer row in the real .subscriptions-item markup (Raw
+     * Pages 2, spec S3-S8): brand avatar slot, name, Public and Created
+     * on pills, seat icons with the remaining count, the total price
+     * big with the per-subscriber price in the fee line, and View
+     * details plus Chat actions. The old Bootstrap row with Edit and
+     * Delete buttons is gone: the real page has neither.
+     *
+     * Terminated offers (status terminated, set by the end-subscription
+     * endpoint) carry data-canceled and start hidden, so the captured
+     * #showInactive toggle in public/js/app.js shows and hides them.
+     * The seat icons are one per shareable seat and the first taken
+     * count is coloured. The filled versus empty icon distinction is
+     * not pinned down from the static capture (gap G-S4): the capture
+     * rows disagree on it.
+     */
     protected function renderMySharedOfferRow(mixed $offer): string
     {
-        $name = (string) ($offer->name ?? $offer->title ?? '');
+        $name = $this->sharedOfferName($offer);
         $brand = null;
         try {
             $brand = $offer->brand;
@@ -2170,23 +2930,285 @@ class CapturedPageController extends Controller
             $symbol = Currency::defaultSymbol() ?? '';
         }
 
-        $frequency = [1 => '/ week', 2 => '/ month', 3 => '/ quarter', 4 => '/ year'][(int) ($offer->frequency ?? 2)] ?? '/ month';
-        $status = $offer->status === 'active' ? 'Active' : 'Draft';
-        $seats = $offer->friends !== null ? (int) $offer->friends.' seat'.((int) $offer->friends === 1 ? '' : 's').' offered' : '';
-        $meta = trim($symbol.number_format((float) $offer->price, 2).' '.$frequency.($seats !== '' ? ' · '.$seats : '').' · '.$status);
+        $identifier = $this->offerHash($offer);
+        $total = $this->sharedOfferTotalPrice($offer);
+        [$intPart, $decPart] = $this->splitPriceParts($total, $symbol);
+        $perSeat = $this->formatPriceAmount((float) ($offer->price ?? 0), $symbol);
 
-        return '<div class="row align-items-center mb-3">'."\n"
-            .'<div class="col">'."\n"
-            .'<strong>'.e($name).'</strong>'."\n"
-            .'<div class="text-muted text-sm">'.e($meta).'</div>'."\n"
+        $seatsTotal = max(0, (int) ($offer->friends ?? 0));
+        $taken = $this->sharedOfferSubscriberCount($offer);
+        $remaining = max(0, $seatsTotal - $taken);
+        $terminated = (string) ($offer->status ?? '') === 'terminated';
+
+        $icons = '';
+        for ($seat = 0; $seat < $seatsTotal; $seat++) {
+            $icons .= $this->seatUserIcon($seat < $taken);
+        }
+
+        $created = $offer->created_at !== null ? $offer->created_at->format('Y/m/d') : '';
+        $glyph = $brand !== null ? $this->brandIconHtml($brand) : '';
+
+        // No thread, no Chat button: an offer with no current members
+        // (a fresh draft) has no conversation to open.
+        $chatButton = $this->sharedOfferHasChatThread($offer)
+            ? '<a href="/en/my-chat/subscription/'.e($identifier).'" class="subscriptions-item-button">'."\n"
+                .self::CHAT_SVG."\n"
+                .'Chat                    </a>'."\n"
+            : '';
+
+        return '<div class="subscriptions-item"'.($terminated ? ' data-canceled style="display: none;"' : '').'>'."\n"
+            .'<div class="subscriptions-item-left">'."\n"
+            .'<div class="subscriptions-item-header">'."\n"
+            .'<div class="subscriptions-item-avatar" style="--sub-color: '.e($brand !== null ? $this->brandBackground($brand) : '#112e45').';">'."\n"
+            .$glyph."\n"
             .'</div>'."\n"
-            .'<div class="col-12 col-md-4 text-md-right">'."\n"
-            .'<a class="btn-sharesub bleu" href="/en/create-subscription/'.(int) $offer->id.'/edit">Edit</a> '."\n"
-            .'<form method="POST" action="/en/create-subscription/'.(int) $offer->id.'" style="display:inline;">'."\n"
-            .'<input type="hidden" name="_token" value="'.csrf_token().'">'."\n"
-            .'<input type="hidden" name="_method" value="DELETE">'."\n"
-            .'<button type="submit" class="btn-sharesub bleu" onclick="return confirm(\'Delete this subscription?\')">Delete</button>'."\n"
-            .'</form>'."\n"
+            .'<div class="subscriptions-item-infos">'."\n"
+            .'<div class="subscriptions-item-info mb-sm-2 mb-md-0">'."\n"
+            .'<div class="subscriptions-item-name">'.e($name).'</div>'."\n"
+            .'</div>'."\n"
+            .'<div class="subscriptions-item-states">'."\n"
+            .'<span class="pill pill-navy">'.e($this->sharedOfferVisibilityLabel($offer)).'</span>'."\n"
+            .'<span class="pill pill-green">'."\n"
+            .'Created on '.$created.'    </span>'."\n"
+            .'</div>'."\n"
+            .'</div>'."\n"
+            .'</div>'."\n"
+            .'<div class="subscriptions-item-content">'."\n"
+            .'<div class="subscriptions-item-content-users">'."\n"
+            .$icons
+            .'</div>'."\n"
+            .$remaining.' seat'.($remaining === 1 ? '' : 's').' remaining'."\n"
+            .'</div>'."\n"
+            .'</div>'."\n"
+            .'<div class="subscriptions-item-right">'."\n"
+            .'<div class="subscriptions-item-pricing">'."\n"
+            .'<span class="subscriptions-item-price"><span class="t3-bold">'.$intPart.'</span>'.$decPart.'</span>'."\n"
+            .'<span class="subscriptions-item-frequency">/ month</span>'."\n"
+            .'</div>'."\n"
+            .'<div class="subscriptions-item-fee">Each subscriber pays you <strong>'.$perSeat.' / month</strong> </div>'."\n"
+            .'<div class="subscriptions-item-actions">'."\n"
+            .'<a href="/en/my-shared-subscriptions/'.e($identifier).'" class="subscriptions-item-button">'."\n"
+            .'View details                    </a>'."\n"
+            .$chatButton
+            .'</div>'."\n"
+            .'</div>'."\n"
+            .'</div>'."\n";
+    }
+
+    /**
+     * Visibility pill text for a shared offer. The mapping comes from
+     * the detail capture's update-visibility props: public 1, nearby 2,
+     * private 0. A null visibility (offers seeded outside the wizard)
+     * reads as Public, the wizard default.
+     */
+    protected function sharedOfferVisibilityLabel(mixed $offer): string
+    {
+        return match ((int) ($offer->visibility ?? 1)) {
+            0 => 'Private',
+            2 => 'Nearby',
+            default => 'Public',
+        };
+    }
+
+    /**
+     * Detail and list URL for a shared offer. The original uses the
+     * 7-hex hash; offers without a stored one use the derived
+     * placeholder from offerHash, which findOwnedSharedOffer resolves.
+     */
+    protected function sharedOfferUrl(mixed $offer): string
+    {
+        return '/en/my-shared-subscriptions/'.$this->offerHash($offer);
+    }
+
+    /**
+     * The offer's total monthly price: the stored total when the wizard
+     * set one, otherwise the per-seat price times the seat count (the
+     * share mode 1 inverse of eachPays). Demo offers seeded outside
+     * the wizard carry no total price.
+     */
+    protected function sharedOfferTotalPrice(mixed $offer): float
+    {
+        $total = (float) ($offer->total_price ?? 0);
+
+        if ($total > 0) {
+            return $total;
+        }
+
+        $seats = max(1, (int) ($offer->total_seats ?? $offer->friends ?? 1));
+
+        return round((float) ($offer->price ?? 0) * $seats, 2);
+    }
+
+    /**
+     * Split a formatted price into the bold integer part (with symbol)
+     * and the decimals part, the way the real rows render the big price:
+     * <span class="t3-bold">£15</span>.58. The decimals part is empty
+     * for a whole amount.
+     *
+     * @return array{0: string, 1: string}
+     */
+    protected function splitPriceParts(float $amount, ?string $symbol): array
+    {
+        $formatted = $this->formatPriceAmount($amount, $symbol);
+        $symbolText = (string) ($symbol ?? '');
+        $number = mb_substr($formatted, mb_strlen($symbolText));
+
+        if (! str_contains($number, '.')) {
+            return [$formatted, ''];
+        }
+
+        [$int, $dec] = explode('.', $number, 2);
+
+        return [$symbolText.$int, '.'.$dec];
+    }
+
+    /**
+     * Current co-subscribers on an offer: current members excluding the
+     * owner member. The owner member row is not a subscriber.
+     */
+    protected function sharedOfferSubscriberCount(mixed $offer): int
+    {
+        try {
+            if (! class_exists(OfferMember::class) || ! Schema::hasTable('offer_members')) {
+                return 0;
+            }
+
+            return OfferMember::where('offer_id', $offer->id)
+                ->where('status', OfferMember::STATUS_CURRENT)
+                ->where(function ($query) use ($offer): void {
+                    $query->whereNull('user_id')->orWhere('user_id', '!=', $offer->user_id);
+                })
+                ->count();
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    /**
+     * Whether an offer has a chat thread at all: at least one current
+     * member (owner counts). Offers without one, such as a draft with
+     * no members yet, render no Chat button, because the thread URL
+     * would have nothing to open.
+     */
+    protected function sharedOfferHasChatThread(mixed $offer): bool
+    {
+        try {
+            if (! class_exists(OfferMember::class) || ! Schema::hasTable('offer_members')) {
+                return false;
+            }
+
+            return OfferMember::where('offer_id', $offer->id)
+                ->where('status', OfferMember::STATUS_CURRENT)
+                ->exists();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * One seat icon for the remaining-seats row: a filled (coloured)
+     * icon for a taken seat, a plain one for a free seat.
+     */
+    protected function seatUserIcon(bool $taken): string
+    {
+        return '<svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg"'.($taken ? ' class="colored"' : '').'>'
+            .'<path d="'.self::SEAT_USER_PATH.'" />'
+            .'</svg>'."\n";
+    }
+
+    /**
+     * Render the Discover cards on My shared subscriptions from the
+     * database, one card per active brand that has an active template,
+     * priced at that brand's lowest active template price_with_fees,
+     * the same lowest-price logic the homepage calculator uses.
+     *
+     * The section was never replaced before, so it always showed the
+     * raw capture: nine cards whose brands mostly do not exist in the
+     * database at all, with prices that do not match any template, so
+     * no card could show a real starting price. The captured cards are
+     * kept only when the templates table has no rows at all (never
+     * seeded). When templates exist but no brand has a priced active
+     * template, the section renders empty instead of showing captured
+     * cards with stale prices. A brand without an active template is
+     * skipped, since there is no real price to show for it. The card
+     * markup copies the captured "from" card, and the button links to
+     * the brand page instead of the captured dead link.
+     */
+    protected function replaceDiscoverSuggestions(string $html): string
+    {
+        if (! str_contains($html, 'subscriptions-suggestions-items')) {
+            return $html;
+        }
+
+        try {
+            if (! class_exists(Template::class) || ! Schema::hasTable('templates')) {
+                return $html;
+            }
+
+            $brands = $this->calculatorBrands();
+
+            if ($brands->isEmpty()) {
+                return $this->tableHasRows('templates') ? $this->replaceDiscoverCards($html, '') : $html;
+            }
+
+            $cards = '';
+            foreach ($brands as $brand) {
+                $template = $brand->lowestTemplate;
+                if ($template === null || $template->price_with_fees === null) {
+                    continue;
+                }
+
+                $cards .= $this->renderDiscoverSuggestionCard($brand, $template);
+            }
+
+            return $this->replaceDiscoverCards($html, $cards);
+        } catch (\Throwable) {
+            return $html;
+        }
+    }
+
+    protected function replaceDiscoverCards(string $html, string $cards): string
+    {
+        return preg_replace_callback(
+            '/(<div class="subscriptions-suggestions-items row">)(.*?)(<\/div>\s*<\/div>\s*<\/div>\s*<\/div>\s*<\/div>\s*<\/div>\s*<div class="dash-sheet-backdrop)/s',
+            static fn (array $matches): string => $matches[1]."\n".$cards.$matches[3],
+            $html,
+            1,
+        ) ?? $html;
+    }
+
+    protected function renderDiscoverSuggestionCard(mixed $brand, mixed $template): string
+    {
+        $name = e((string) $brand->name);
+        $url = e($this->brandUrl($brand));
+        $background = $this->brandBackground($brand);
+        $price = e($this->formatPriceAmount(
+            (float) $template->price_with_fees,
+            $this->brandCurrencySymbol($brand, $template->currency ?? null),
+        ));
+        $letter = e(mb_substr((string) $brand->name, 0, 1));
+
+        return '<div class="col-sm-6 col-12 col-md-4">'."\n"
+            .'<div class="subscriptions-suggestion-item">'."\n"
+            .'<div class="subscriptions-suggestion-item-top">'."\n"
+            .'<div class="subscriptions-suggestion-item-circle" style="background: '.e($background).';">'."\n"
+            .$letter."\n"
+            .'</div>'."\n"
+            .'<div class="subscriptions-suggestion-item-info">'."\n"
+            .'<div class="subscriptions-suggestion-item-name">'.$name.'</div>'."\n"
+            .'<div class="subscriptions-suggestion-item-description">from</div>'."\n"
+            .'</div>'."\n"
+            .'</div>'."\n"
+            .'<div class="subscriptions-suggestion-item-pricing">'."\n"
+            .'<span class="subscriptions-suggestion-item-price">'.$price.'</span>'."\n"
+            .'<span class="subscriptions-suggestion-item-frequency">/ month</span>'."\n"
+            .'</div>'."\n"
+            .'<div class="subscriptions-suggestion-item-actions">'."\n"
+            .'<a href="'.$url.'" class="subscriptions-suggestion-item-button" style="border-color: '.e($background).';color: '.e($background).';">'."\n"
+            .'<span>Discover</span><span class="subscriptions-suggestion-item-arrow">'."\n"
+            .self::SUGGESTION_ARROW_SVG.'</span>'."\n"
+            .'</a>'."\n"
+            .'</div>'."\n"
             .'</div>'."\n"
             .'</div>'."\n";
     }

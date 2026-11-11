@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
@@ -32,6 +33,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'language',
     'payout_low_amount',
     'payout_convert_currency',
+    'stripe_connect_account_id',
+    'stripe_customer_id',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -47,6 +50,36 @@ class User extends Authenticatable
     public function kycSubmission(): HasOne
     {
         return $this->hasOne(KycSubmission::class);
+    }
+
+    public function offerMembers(): HasMany
+    {
+        return $this->hasMany(OfferMember::class);
+    }
+
+    public function sentChatMessages(): HasMany
+    {
+        return $this->hasMany(ChatMessage::class, 'sender_id');
+    }
+
+    public function walletBalances(): HasMany
+    {
+        return $this->hasMany(WalletBalance::class);
+    }
+
+    public function payouts(): HasMany
+    {
+        return $this->hasMany(Payout::class);
+    }
+
+    public function paymentMethods(): HasMany
+    {
+        return $this->hasMany(PaymentMethod::class);
+    }
+
+    public function bankAccounts(): HasMany
+    {
+        return $this->hasMany(BankAccount::class);
     }
 
     /**

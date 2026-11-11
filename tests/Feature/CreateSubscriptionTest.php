@@ -508,6 +508,86 @@ class CreateSubscriptionTest extends TestCase
         $response->assertSee('£1.99 / month');
     }
 
+    public function test_shared_subscription_row_shows_brand_logo_in_avatar_slot(): void
+    {
+        $user = $this->user();
+        $brand = $this->makeBrand([
+            'name' => 'Nord VPN',
+            'slug' => 'nord-vpn',
+            'background' => '#1A73E9',
+            'icon_svg' => '<svg data-logo-test="nordpass-icon"></svg>',
+        ]);
+        $this->makeSeededOffer($brand, [
+            'user_id' => $user->id,
+            'status' => 'active',
+            'title' => 'Nordpass',
+            'name' => 'Nordpass',
+            'price' => 0.96,
+        ]);
+
+        $response = $this->actingAs($user)->get('/en/my-shared-subscriptions');
+
+        $response->assertOk();
+        $response->assertSee('Nordpass');
+        $response->assertSee('subscriptions-item-avatar', false);
+        $response->assertSee('--sub-color: #1A73E9', false);
+        $response->assertSee('<svg data-logo-test="nordpass-icon"></svg>', false);
+    }
+
+    public function test_shared_subscription_row_shows_uploaded_brand_logo_image(): void
+    {
+        $user = $this->user();
+        $brand = $this->makeBrand([
+            'name' => 'Nord VPN',
+            'slug' => 'nord-vpn',
+            'background' => '#1A73E9',
+            'logo_path' => 'brands/nordpass.png',
+            'icon_svg' => '<svg data-logo-test="nordpass-icon"></svg>',
+        ]);
+        $this->makeSeededOffer($brand, [
+            'user_id' => $user->id,
+            'status' => 'active',
+            'title' => 'Nordpass',
+            'name' => 'Nordpass',
+            'price' => 0.96,
+        ]);
+
+        $response = $this->actingAs($user)->get('/en/my-shared-subscriptions');
+
+        $response->assertOk();
+        $response->assertSee('subscriptions-item-avatar', false);
+        $response->assertSee('<img src="/storage/brands/nordpass.png"', false);
+        $response->assertDontSee('nordpass-icon');
+    }
+
+    public function test_shared_subscription_row_without_brand_logo_renders_empty_avatar_slot(): void
+    {
+        $user = $this->user();
+        $brand = $this->makeBrand([
+            'name' => 'No Logo Brand',
+            'slug' => 'no-logo-brand',
+            'background' => '#112e45',
+            'icon_svg' => null,
+            'logo_path' => null,
+        ]);
+        $this->makeSeededOffer($brand, [
+            'user_id' => $user->id,
+            'status' => 'active',
+            'title' => 'No Logo Plan',
+            'name' => 'No Logo Plan',
+            'price' => 1.00,
+        ]);
+
+        $response = $this->actingAs($user)->get('/en/my-shared-subscriptions');
+
+        $response->assertOk();
+        $response->assertSee('No Logo Plan');
+        // The real row always carries the avatar slot (a coloured
+        // circle); a brand with no logo or glyph simply leaves it
+        // empty instead of dropping the slot.
+        $response->assertSee('<div class="subscriptions-item-avatar" style="--sub-color: #112e45;">', false);
+    }
+
     public function test_propose_links_and_calculator_create_url_point_at_the_wizard(): void
     {
         $brand = $this->makeBrand();

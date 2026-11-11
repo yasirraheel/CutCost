@@ -20,11 +20,16 @@ use App\Http\Controllers\AdminSiteSettingsController;
 use App\Http\Controllers\AdminTemplatesController;
 use App\Http\Controllers\AdminTestimonialsController;
 use App\Http\Controllers\AdminUsersController;
+use App\Http\Controllers\BankAccountController;
 use App\Http\Controllers\CapturedPageController;
+use App\Http\Controllers\CardsController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\CmsPageController;
 use App\Http\Controllers\CreateSubscriptionController;
+use App\Http\Controllers\DocumentsController;
 use App\Http\Controllers\KycController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\WalletController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect('/en/', 301));
@@ -83,6 +88,16 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/en/my-account/identity', [KycController::class, 'submit']);
 });
 
+Route::middleware('auth')->group(function (): void {
+    Route::get('/en/my-documents', [DocumentsController::class, 'show'])->name('user.documents');
+    Route::get('/en/my-wallet', [WalletController::class, 'show'])->name('user.wallet');
+    Route::get('/en/my-cards', [CardsController::class, 'show'])->name('user.cards');
+    Route::post('/en/my-cards/set-default', [CardsController::class, 'setDefault'])->name('user.cards.set-default');
+    Route::post('/en/my-cards/delete', [CardsController::class, 'destroy'])->name('user.cards.delete');
+    Route::get('/en/my-bank-account', [BankAccountController::class, 'show'])->name('user.bank-account');
+    Route::post('/en/my-bank-account/save', [BankAccountController::class, 'save'])->name('user.bank-account.save');
+});
+
 Route::middleware(['auth', 'role:admin'])->prefix('en/admin')->group(function (): void {
     Route::get('/', [AdminPanelController::class, 'show'])
         ->defaults('section', 'dashboard')
@@ -129,11 +144,8 @@ $protectedPages = [
     'shared-subscriptions' => ['en/my-shared-subscriptions', 'en/my-shared-subscriptions.html'],
     'joined-subscriptions' => ['en/joined-subscriptions', 'en/joined-subscriptions.html'],
     'waiting-list' => ['en/waiting-list', 'en/waiting-list.html'],
-    'wallet' => ['en/my-wallet', 'en/my-wallet.html'],
-    'cards' => ['en/my-cards', 'en/my-cards.html'],
     'account' => ['en/my-account', 'en/my-account.html'],
     'settings' => ['en/my-settings', 'en/my-settings.html'],
-    'chat' => ['en/my-chat/subscriptions', 'en/my-chat/subscriptions.html'],
 ];
 
 foreach ($protectedPages as $name => [$canonicalPath, $htmlPath]) {
@@ -154,6 +166,58 @@ foreach ($protectedPages as $name => [$canonicalPath, $htmlPath]) {
             ->middleware('auth');
     }
 }
+
+// Chat pages and endpoints (ChatController). Threads are keyed by the
+// offer_members row id: the detail page, the messages view and every
+// endpoint live under /en/my-chat/subscription/{memberId}/, because
+// the demo offers carry no hash for the captured hash based URLs.
+Route::middleware('auth')->group(function (): void {
+    Route::get('/en/my-chat/subscriptions', [ChatController::class, 'index'])->name('user.chat');
+    Route::get('/en/my-chat/subscriptions.html', fn () => redirect('/en/my-chat/subscriptions', 301))
+        ->middleware('auth');
+    Route::get('/en/my-chat/subscription/{member}', [ChatController::class, 'detail'])
+        ->where('member', '[A-Za-z0-9]+')
+        ->name('user.chat.detail');
+    Route::get('/en/my-chat/subscription/{member}/messages', [ChatController::class, 'messages'])
+        ->where('member', '[0-9]+')
+        ->name('user.chat.messages');
+    Route::get('/en/my-chat/subscription/{identifier}/{member}/messages', [ChatController::class, 'messagesByOffer'])
+        ->where(['identifier' => '[A-Za-z0-9]+', 'member' => '[0-9]+'])
+        ->name('user.chat.messages.by-offer');
+    Route::get('/en/my-chat/unread', [ChatController::class, 'unread'])->name('user.chat.unread');
+    Route::get('/en/my-chat/subscription/{member}/messages/latest', [ChatController::class, 'latest'])
+        ->where('member', '[0-9]+')
+        ->name('user.chat.messages.latest');
+    Route::post('/en/my-chat/subscription/{member}/message', [ChatController::class, 'send'])
+        ->where('member', '[0-9]+')
+        ->name('user.chat.message.send');
+    Route::post('/en/my-chat/subscription/{member}/read', [ChatController::class, 'read'])
+        ->where('member', '[0-9]+')
+        ->name('user.chat.read');
+    Route::post('/en/my-chat/subscription/{member}/moderate', [ChatController::class, 'moderate'])
+        ->where('member', '[0-9]+')
+        ->name('user.chat.moderate');
+});
+
+Route::middleware('auth')->group(function (): void {
+    // Shared-subscription detail page (Raw Pages 2): detail by offer
+    // hash (or id when the offer has no hash), plus the tab POSTs.
+    Route::get('/en/my-shared-subscriptions/{identifier}', [CapturedPageController::class, 'showSharedOffer'])
+        ->where('identifier', '[A-Za-z0-9]+')
+        ->name('user.shared-offer');
+    Route::post('/en/my-shared-subscriptions/{identifier}', [CapturedPageController::class, 'saveSharedOfferCredentials'])
+        ->where('identifier', '[A-Za-z0-9]+')
+        ->name('user.shared-offer.save');
+    Route::post('/en/my-shared-subscriptions/{identifier}/mark-email-invite-sent/{member}', [CapturedPageController::class, 'markEmailInviteSent'])
+        ->where(['identifier' => '[A-Za-z0-9]+', 'member' => '[0-9]+'])
+        ->name('user.shared-offer.mark-invite-sent');
+    Route::post('/en/my-shared-subscriptions/{identifier}/migrate', [CapturedPageController::class, 'migrateSharedOffer'])
+        ->where('identifier', '[A-Za-z0-9]+')
+        ->name('user.shared-offer.migrate');
+    Route::post('/en/my-shared-subscriptions/{identifier}/end', [CapturedPageController::class, 'endSharedOffer'])
+        ->where('identifier', '[A-Za-z0-9]+')
+        ->name('user.shared-offer.end');
+});
 
 Route::middleware('auth')->group(function (): void {
     Route::get('/en/create-subscription', [CreateSubscriptionController::class, 'show'])
