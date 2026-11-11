@@ -27,7 +27,7 @@
     <div class="col-12 form-group">
         <label for="avatar">Avatar image <span class="text-muted">(jpg, png, webp or svg, max 2 MB)</span></label>
         @if ($testimonial->avatar_path)
-            <div class="mb-2"><img src="{{ asset('storage/'.$testimonial->avatar_path) }}" alt="" style="max-height: 60px;"></div>
+            <div class="mb-2"><img src="{{ str_starts_with($testimonial->avatar_path, '/') || str_starts_with($testimonial->avatar_path, 'http') ? asset($testimonial->avatar_path) : asset('storage/'.$testimonial->avatar_path) }}" alt="" style="max-height: 60px;"></div>
         @endif
         <input class="input-sharesub" id="avatar" name="avatar" type="file" accept=".jpg,.jpeg,.png,.webp,.svg">
     </div>

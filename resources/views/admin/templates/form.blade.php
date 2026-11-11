@@ -18,7 +18,11 @@
     </div>
     <div class="col-12 col-md-6 form-group">
         <label for="currency">Currency code</label>
-        <input class="input-sharesub" id="currency" name="currency" maxlength="3" value="{{ old('currency', $template->currency) }}" required>
+        <select class="input-sharesub" id="currency" name="currency" required>
+            @foreach ($currencies as $currencyOption)
+                <option value="{{ $currencyOption->code }}" @selected(old('currency', $template->currency) === $currencyOption->code)>{{ $currencyOption->code }} ({{ $currencyOption->symbol }}) {{ $currencyOption->name }}</option>
+            @endforeach
+        </select>
     </div>
     <div class="col-12 col-md-4 form-group">
         <label for="price_with_fees">Price with fees</label>

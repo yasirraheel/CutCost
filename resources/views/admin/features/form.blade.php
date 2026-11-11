@@ -14,6 +14,7 @@
     <div class="col-12 form-group">
         <label for="icon">Icon image upload <span class="text-muted">(jpg, png, webp or svg, max 2 MB; replaces the icon path above)</span></label>
         @if ($feature->icon_path)
+            <div class="mb-2"><img src="{{ str_starts_with($feature->icon_path, '/') || str_starts_with($feature->icon_path, 'http') ? asset($feature->icon_path) : asset('storage/'.$feature->icon_path) }}" alt="" style="max-height: 60px;"></div>
             <div class="mb-2 text-muted text-sm">Current: {{ $feature->icon_path }}</div>
         @endif
         <input class="input-sharesub" id="icon" name="icon" type="file" accept=".jpg,.jpeg,.png,.webp,.svg">

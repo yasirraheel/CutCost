@@ -18,7 +18,7 @@
     <div class="col-12 form-group">
         <label for="logo">Logo image <span class="text-muted">(jpg, png, webp or svg, max 2 MB)</span></label>
         @if ($pressItem->logo_path)
-            <div class="mb-2"><img src="{{ asset('storage/'.$pressItem->logo_path) }}" alt="" style="max-height: 60px;"></div>
+            <div class="mb-2"><img src="{{ str_starts_with($pressItem->logo_path, '/') || str_starts_with($pressItem->logo_path, 'http') ? asset($pressItem->logo_path) : asset('storage/'.$pressItem->logo_path) }}" alt="" style="max-height: 60px;"></div>
         @endif
         <input class="input-sharesub" id="logo" name="logo" type="file" accept=".jpg,.jpeg,.png,.webp,.svg">
     </div>

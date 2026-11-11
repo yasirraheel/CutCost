@@ -14,7 +14,7 @@
                 <div class="col-12 form-group">
                     <label for="settings-{{ $key }}">{{ $meta['label'] }} <span class="text-muted">({{ $key }})</span></label>
                     @if ($meta['type'] === 'textarea')
-                        <textarea class="input-sharesub" id="settings-{{ $key }}" name="settings[{{ $key }}]" rows="3">{{ old('settings.'.$key, $settings[$key] ?? '') }}</textarea>
+                        <textarea class="input-sharesub{{ str_ends_with($key, '_html') ? ' rich-text-editor' : '' }}" id="settings-{{ $key }}" name="settings[{{ $key }}]" rows="3">{{ old('settings.'.$key, $settings[$key] ?? '') }}</textarea>
                     @else
                         <input class="input-sharesub" id="settings-{{ $key }}" name="settings[{{ $key }}]" value="{{ old('settings.'.$key, $settings[$key] ?? '') }}">
                     @endif
@@ -23,4 +23,5 @@
         </div>
         <button type="submit" class="btn-sharesub bleu mx-auto my-2 d-block">Save settings</button>
     </form>
+    @include('admin.partials.rich-text-editor')
 </section>

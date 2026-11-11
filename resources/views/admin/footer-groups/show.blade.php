@@ -1,5 +1,11 @@
 <section class="dashboard-progress mb-3 p-4">
-    <h3 class="dashboard-progress-title">{{ $group->title }}</h3>
+    <div class="d-flex justify-content-between align-items-center">
+        <h3 class="dashboard-progress-title mb-0">{{ $group->title }}</h3>
+        <div class="d-flex">
+            <a class="btn-sharesub bleu" style="width: auto;" href="{{ route('admin.footer-links.create', $group) }}">Add footer link</a>
+            <a class="btn btn-light btn-sm ml-2" href="{{ route('admin.footer-groups.edit', $group) }}">Edit group</a>
+        </div>
+    </div>
     <div class="progress mt-3" style="height: 10px;">
         <div class="progress-bar bg-green" role="progressbar" style="width: 100%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
     </div>
@@ -9,10 +15,6 @@
     @if ($errors->any())
         <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
     @endif
-    <div class="mt-3">
-        <a class="btn-sharesub bleu" href="{{ route('admin.footer-links.create', $group) }}">Add footer link</a>
-        <a class="btn btn-light btn-sm" href="{{ route('admin.footer-groups.edit', $group) }}">Edit group</a>
-    </div>
     <ul class="dashboard-profile-steps mt-3">
         @forelse ($group->footerLinks as $link)
             <li class="row align-items-center">

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RendersAdminShell;
 use App\Models\Brand;
+use App\Models\Currency;
 use App\Models\Template;
 use Illuminate\Http\Request;
 
@@ -20,10 +21,11 @@ class AdminTemplatesController extends Controller
 
     public function create()
     {
-        $template = new Template(['currency' => 'GBP', 'sort_order' => 0, 'is_active' => true]);
+        $template = new Template(['currency' => Currency::defaultCode(), 'sort_order' => 0, 'is_active' => true]);
         $brands = Brand::orderBy('name')->get();
+        $currencies = Currency::ordered()->get();
 
-        return $this->adminShell(view('admin.templates.create', compact('template', 'brands'))->render(), 'New template', '/en/admin/templates');
+        return $this->adminShell(view('admin.templates.create', compact('template', 'brands', 'currencies'))->render(), 'New template', '/en/admin/templates');
     }
 
     public function store(Request $request)
@@ -39,8 +41,9 @@ class AdminTemplatesController extends Controller
     public function edit(Template $template)
     {
         $brands = Brand::orderBy('name')->get();
+        $currencies = Currency::ordered()->get();
 
-        return $this->adminShell(view('admin.templates.edit', compact('template', 'brands'))->render(), 'Edit template', '/en/admin/templates');
+        return $this->adminShell(view('admin.templates.edit', compact('template', 'brands', 'currencies'))->render(), 'Edit template', '/en/admin/templates');
     }
 
     public function update(Request $request, Template $template)
@@ -72,7 +75,7 @@ class AdminTemplatesController extends Controller
             'available_seats' => ['nullable', 'integer', 'min:0'],
             'price_with_fees' => ['required', 'numeric', 'min:0'],
             'retail_price' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['required', 'string', 'size:3'],
+            'currency' => ['required', 'string', 'size:3', 'exists:currencies,code'],
             'description' => ['nullable', 'string'],
             'description_seo' => ['nullable', 'string'],
             'title_seo' => ['nullable', 'string', 'max:255'],
@@ -95,7 +98,7 @@ class AdminTemplatesController extends Controller
             'available_seats' => $validated['available_seats'] ?? null,
             'price_with_fees' => $validated['price_with_fees'],
             'retail_price' => $validated['retail_price'] ?? null,
-            'currency' => $validated['currency'],
+            'currency' => strtoupper($validated['currency']),
             'description' => $validated['description'] ?? null,
             'description_seo' => $validated['description_seo'] ?? null,
             'title_seo' => $validated['title_seo'] ?? null,

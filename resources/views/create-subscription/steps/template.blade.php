@@ -13,7 +13,7 @@
                         <div class="text-muted text-sm">
                             Up to {{ min($template->shareable_seats ?? 1, ($template->seats ?? 2) - 1) + 1 }} users
                             @if ($template->retail_price !== null)
-                                · {{ $template->currency === 'EUR' ? '€' : '£' }}{{ number_format((float) $template->retail_price, 2) }} / month
+                                · {{ $currencySymbols[$template->currency] ?? $currencySymbol }}{{ number_format((float) $template->retail_price, 2) }} / month
                             @endif
                         </div>
                     </div>

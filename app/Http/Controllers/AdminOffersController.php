@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RendersAdminShell;
 use App\Models\Brand;
+use App\Models\Currency;
 use App\Models\Offer;
 use Illuminate\Http\Request;
 
@@ -20,10 +21,11 @@ class AdminOffersController extends Controller
 
     public function create()
     {
-        $offer = new Offer(['currency' => 'GBP', 'sort_order' => 0, 'is_active' => true]);
+        $offer = new Offer(['currency' => Currency::defaultCode(), 'sort_order' => 0, 'is_active' => true]);
         $brands = Brand::orderBy('name')->get();
+        $currencies = Currency::ordered()->get();
 
-        return $this->adminShell(view('admin.offers.create', compact('offer', 'brands'))->render(), 'New offer', '/en/admin/offers');
+        return $this->adminShell(view('admin.offers.create', compact('offer', 'brands', 'currencies'))->render(), 'New offer', '/en/admin/offers');
     }
 
     public function store(Request $request)
@@ -42,8 +44,9 @@ class AdminOffersController extends Controller
     public function edit(Offer $offer)
     {
         $brands = Brand::orderBy('name')->get();
+        $currencies = Currency::ordered()->get();
 
-        return $this->adminShell(view('admin.offers.edit', compact('offer', 'brands'))->render(), 'Edit offer', '/en/admin/offers');
+        return $this->adminShell(view('admin.offers.edit', compact('offer', 'brands', 'currencies'))->render(), 'Edit offer', '/en/admin/offers');
     }
 
     public function update(Request $request, Offer $offer)
@@ -70,7 +73,7 @@ class AdminOffersController extends Controller
             'brand_id' => ['required', 'exists:brands,id'],
             'title' => ['required', 'string', 'max:255'],
             'price' => ['required', 'numeric', 'min:0'],
-            'currency' => ['required', 'string', 'size:3'],
+            'currency' => ['required', 'string', 'size:3', 'exists:currencies,code'],
             'seats_total' => ['nullable', 'integer', 'min:0'],
             'seats_available' => ['nullable', 'integer', 'min:0'],
             'seller_name' => ['nullable', 'string', 'max:255'],
@@ -86,7 +89,7 @@ class AdminOffersController extends Controller
             'brand_id' => $validated['brand_id'],
             'title' => $validated['title'],
             'price' => $validated['price'],
-            'currency' => $validated['currency'],
+            'currency' => strtoupper($validated['currency']),
             'seats_total' => $validated['seats_total'] ?? null,
             'seats_available' => $validated['seats_available'] ?? null,
             'seller_name' => $validated['seller_name'] ?? null,
