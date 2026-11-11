@@ -86,8 +86,9 @@ class AdminPanelController extends Controller
     {
         $shareStart = strpos($html, '<div class="share-section dashboard mb-4 p-4">');
         $revenuesStart = strpos($html, '<div class="dashboard-progress dashboard-revenues-expenses mb-4 p-4">');
+        $paymentsStart = strpos($html, '<div class="dashboard-progress dashboard-payments mb-4 p-4">');
 
-        if ($shareStart === false || $revenuesStart === false || $revenuesStart <= $shareStart) {
+        if ($shareStart === false || $revenuesStart === false || $paymentsStart === false || $revenuesStart <= $shareStart || $paymentsStart <= $revenuesStart) {
             return $html;
         }
 
@@ -139,7 +140,8 @@ class AdminPanelController extends Controller
 </div>
 HTML;
 
-        $html = substr($html, 0, $shareStart).$adminCards.substr($html, $revenuesStart);
+        $platformSection = substr($html, $revenuesStart, $paymentsStart - $revenuesStart);
+        $html = substr($html, 0, $shareStart).$platformSection.$adminCards.substr($html, $paymentsStart);
         $pending = KycSubmission::where('status', KycSubmission::STATUS_UNDER_REVIEW)->count();
         $approved = KycSubmission::where('status', KycSubmission::STATUS_APPROVED)->count();
         $users = User::count();
