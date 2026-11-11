@@ -191,6 +191,67 @@ HTML;
         <span class="navi_dash-text">Features</span>
     </a>
 </li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/countries">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="15" cy="15" r="11" fill="none" stroke="currentColor" stroke-width="2" />
+                <path d="M4 15h22M15 4c3 3.5 3 18.5 0 22-3-3.5-3-18.5 0-22z" fill="none" stroke="currentColor" stroke-width="2" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Countries</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/templates">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M4 6h22v18H4V6zm2 2v4h18V8H6zm0 6v8h7v-8H6zm9 0v3h7v-3h-7zm0 5v3h7v-3h-7z" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Templates</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/reassurance">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M15 4l3.2 6.9 7.3.8-5.5 5 1.5 7.3L15 20.4 8.5 24 10 16.7 4.5 11.7l7.3-.8L15 4z" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Reassurance</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/brand-faqs">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path fill-rule="evenodd" d="M6 4h18v22H6V4zm4 6v2h10v-2H10v-2zm0 5v2h10v-2H10v-2zm0 5v2h6v-2h-6v-2z" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Brand FAQs</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/pages">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M8 3h9l5 5v19H8V3zm9 2.4V9h3.6L17 5.4zM11 13h8v2h-8v-2zm0 5h8v2h-8v-2zm0 5h5v2h-5v-2z" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Pages</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/offers">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M4 6h22v18H4V6zm2 2v4h18V8H6zm0 6v8h7v-8H6zm9 0v3h7v-3h-7zm0 5v3h7v-3h-7z" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Offers</span>
+    </a>
+</li>
 HTML;
         $html = preg_replace(
             '/(<li class="navi_dash-item ">\s*<a class="navi_dash-link  " href="\/en\/admin\/account">)/i',

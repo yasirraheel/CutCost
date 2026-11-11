@@ -79,6 +79,7 @@ class AdminFeaturesController extends Controller
             'icon_path' => ['nullable', 'string', 'max:255'],
             'icon' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,svg', 'max:2048'],
             'icon_svg' => ['nullable', 'string'],
+            'link_url' => ['nullable', 'string', 'max:255'],
             'sort_order' => ['nullable', 'integer'],
             'is_active' => ['nullable', 'boolean'],
         ];
@@ -92,6 +93,7 @@ class AdminFeaturesController extends Controller
             'text' => $validated['text'] ?? null,
             'icon_path' => $validated['icon_path'] ?? null,
             'icon_svg' => $validated['icon_svg'] ?? null,
+            'link_url' => $validated['link_url'] ?? null,
             'sort_order' => $validated['sort_order'] ?? 0,
             'is_active' => $request->boolean('is_active'),
         ];

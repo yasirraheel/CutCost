@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'name',
     'slug',
     'icon_svg',
+    'description',
     'sort_order',
     'is_active',
 ])]

@@ -22,12 +22,7 @@
                     <div class="text-muted text-sm">{{ $link->url }} · Order {{ $link->sort_order }} · {{ $link->is_active ? 'Active' : 'Inactive' }}</div>
                 </div>
                 <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right">
-                    <a class="btn btn-light btn-sm" href="{{ route('admin.footer-links.edit', [$group, $link]) }}">Edit</a>
-                    <form class="d-inline" method="POST" action="{{ route('admin.footer-links.destroy', [$group, $link]) }}" onsubmit="return confirm('Delete this footer link permanently?');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn-sharesub red outline small">Delete</button>
-                    </form>
+                    @include('admin.partials.row-actions', ['editUrl' => route('admin.footer-links.edit', [$group, $link]), 'deleteUrl' => route('admin.footer-links.destroy', [$group, $link]), 'deleteConfirm' => 'Delete this footer link permanently?'])
                 </div>
             </li>
         @empty

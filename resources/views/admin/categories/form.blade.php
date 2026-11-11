@@ -21,6 +21,10 @@
         </div>
     </div>
     <div class="col-12 form-group">
+        <label for="description">Description</label>
+        <textarea class="input-sharesub" id="description" name="description" rows="3">{{ old('description', $category->description) }}</textarea>
+    </div>
+    <div class="col-12 form-group">
         <label for="icon_svg">Icon SVG</label>
         <textarea class="input-sharesub" id="icon_svg" name="icon_svg" rows="3">{{ old('icon_svg', $category->icon_svg) }}</textarea>
     </div>

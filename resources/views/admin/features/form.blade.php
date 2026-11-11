@@ -19,6 +19,10 @@
         <input class="input-sharesub" id="icon" name="icon" type="file" accept=".jpg,.jpeg,.png,.webp,.svg">
     </div>
     <div class="col-12 form-group">
+        <label for="link_url">Link URL <span class="text-muted">(used for the Read More link; leave empty for no link)</span></label>
+        <input class="input-sharesub" id="link_url" name="link_url" value="{{ old('link_url', $feature->link_url) }}">
+    </div>
+    <div class="col-12 form-group">
         <label for="icon_svg">Icon SVG <span class="text-muted">(inline SVG alternative)</span></label>
         <textarea class="input-sharesub" id="icon_svg" name="icon_svg" rows="3">{{ old('icon_svg', $feature->icon_svg) }}</textarea>
     </div>

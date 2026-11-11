@@ -21,12 +21,7 @@
                     <div class="text-muted text-sm">{{ Str::limit($faq->answer, 80) }} · Order {{ $faq->sort_order }} · {{ $faq->is_active ? 'Active' : 'Inactive' }}</div>
                 </div>
                 <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right">
-                    <a class="btn btn-light btn-sm" href="{{ route('admin.faqs.edit', $faq) }}">Edit</a>
-                    <form class="d-inline" method="POST" action="{{ route('admin.faqs.destroy', $faq) }}" onsubmit="return confirm('Delete this FAQ permanently?');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn-sharesub red outline small">Delete</button>
-                    </form>
+                    @include('admin.partials.row-actions', ['editUrl' => route('admin.faqs.edit', $faq), 'deleteUrl' => route('admin.faqs.destroy', $faq), 'deleteConfirm' => 'Delete this FAQ permanently?'])
                 </div>
             </li>
         @empty

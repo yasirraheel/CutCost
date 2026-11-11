@@ -5,7 +5,7 @@
     @if ($errors->any())
         <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
     @endif
-    <form method="POST" action="{{ route('admin.how-it-works.store') }}">
+    <form method="POST" action="{{ route('admin.how-it-works.store') }}" enctype="multipart/form-data">
         @csrf
         @include('admin.how-it-works.form')
         <button type="submit" class="btn-sharesub bleu mx-auto my-2 d-block">Save step</button>

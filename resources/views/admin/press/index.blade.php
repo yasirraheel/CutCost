@@ -21,12 +21,7 @@
                     <div class="text-muted text-sm">{{ $pressItem->logo_text }} · {{ $pressItem->link_url }} · Order {{ $pressItem->sort_order }} · {{ $pressItem->is_active ? 'Active' : 'Inactive' }}</div>
                 </div>
                 <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right">
-                    <a class="btn btn-light btn-sm" href="{{ route('admin.press.edit', $pressItem) }}">Edit</a>
-                    <form class="d-inline" method="POST" action="{{ route('admin.press.destroy', $pressItem) }}" onsubmit="return confirm('Delete this press item permanently?');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn-sharesub red outline small">Delete</button>
-                    </form>
+                    @include('admin.partials.row-actions', ['editUrl' => route('admin.press.edit', $pressItem), 'deleteUrl' => route('admin.press.destroy', $pressItem), 'deleteConfirm' => 'Delete this press item permanently?'])
                 </div>
             </li>
         @empty

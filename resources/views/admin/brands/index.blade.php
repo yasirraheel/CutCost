@@ -21,12 +21,7 @@
                     <div class="text-muted text-sm">{{ $brand->currency_symbol }}{{ number_format($brand->price, 2) }} · {{ $brand->slug }} · {{ $brand->category?->name ?? 'No category' }} · {{ $brand->is_active ? 'Active' : 'Inactive' }}{{ $brand->is_featured ? ' · Featured' : '' }}</div>
                 </div>
                 <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right">
-                    <a class="btn btn-light btn-sm" href="{{ route('admin.brands.edit', $brand) }}">Edit</a>
-                    <form class="d-inline" method="POST" action="{{ route('admin.brands.destroy', $brand) }}" onsubmit="return confirm('Delete this brand permanently?');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn-sharesub red outline small">Delete</button>
-                    </form>
+                    @include('admin.partials.row-actions', ['editUrl' => route('admin.brands.edit', $brand), 'deleteUrl' => route('admin.brands.destroy', $brand), 'deleteConfirm' => 'Delete this brand permanently?'])
                 </div>
             </li>
         @empty

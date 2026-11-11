@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Model;
     'title',
     'text',
     'icon_svg',
+    'audience',
+    'mockup_image_path',
     'sort_order',
     'is_active',
 ])]

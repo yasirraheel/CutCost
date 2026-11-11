@@ -1,0 +1,45 @@
+<div class="row">
+    <div class="col-12 col-md-6 form-group">
+        <label for="slug">Slug</label>
+        <input class="input-sharesub" id="slug" name="slug" value="{{ old('slug', $page->slug) }}" required>
+    </div>
+    <div class="col-12 col-md-6 form-group">
+        <label for="type">Type</label>
+        <select class="input-sharesub" id="type" name="type" required>
+            <option value="page" @selected(old('type', $page->type) === 'page')>Page</option>
+            <option value="post" @selected(old('type', $page->type) === 'post')>Post</option>
+        </select>
+    </div>
+    <div class="col-12 form-group">
+        <label for="title">Title</label>
+        <input class="input-sharesub" id="title" name="title" value="{{ old('title', $page->title) }}" required>
+    </div>
+    <div class="col-12 form-group">
+        <label for="excerpt">Excerpt</label>
+        <textarea class="input-sharesub" id="excerpt" name="excerpt" rows="2">{{ old('excerpt', $page->excerpt) }}</textarea>
+    </div>
+    <div class="col-12 form-group">
+        <label for="body_html">Body HTML</label>
+        <textarea class="input-sharesub" id="body_html" name="body_html" rows="12" required>{{ old('body_html', $page->body_html) }}</textarea>
+    </div>
+    <div class="col-12 col-md-6 form-group">
+        <label for="sort_order">Sort order</label>
+        <input class="input-sharesub" id="sort_order" name="sort_order" type="number" value="{{ old('sort_order', $page->sort_order ?? 0) }}">
+    </div>
+    <div class="col-12 col-md-6 form-group">
+        <label for="image">Image <span class="text-muted">(jpg, png, webp or svg, max 2 MB)</span></label>
+        @if ($page->image_path)
+            <div class="mb-2"><img src="{{ asset('storage/'.$page->image_path) }}" alt="" style="max-height: 60px;"></div>
+        @endif
+        <input class="input-sharesub" id="image" name="image" type="file" accept=".jpg,.jpeg,.png,.webp,.svg">
+    </div>
+    <div class="col-12 col-md-6 form-group">
+        <div class="filter-toggle justify-content-start">
+            <div class="filter-toggle-wrapper">
+                <input type="checkbox" id="is_active" name="is_active" value="1" class="checkbox-sharesub" @checked(old('is_active', $page->is_active))>
+                <label for="is_active" class="label-sharesub">Toggle</label>
+            </div>
+            <div class="filter-toggle-text">Active</div>
+        </div>
+    </div>
+</div>

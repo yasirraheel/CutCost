@@ -5,7 +5,7 @@
     @if ($errors->any())
         <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
     @endif
-    <form method="POST" action="{{ route('admin.how-it-works.update', $step) }}">
+    <form method="POST" action="{{ route('admin.how-it-works.update', $step) }}" enctype="multipart/form-data">
         @csrf
         @method('PUT')
         @include('admin.how-it-works.form')

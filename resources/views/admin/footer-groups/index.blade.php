@@ -21,13 +21,7 @@
                     <div class="text-muted text-sm">{{ $group->footer_links_count }} link(s) · Order {{ $group->sort_order }}</div>
                 </div>
                 <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right">
-                    <a class="btn btn-light btn-sm" href="{{ route('admin.footer-groups.show', $group) }}">View links</a>
-                    <a class="btn btn-light btn-sm" href="{{ route('admin.footer-groups.edit', $group) }}">Edit</a>
-                    <form class="d-inline" method="POST" action="{{ route('admin.footer-groups.destroy', $group) }}" onsubmit="return confirm('Delete this link group and all its links permanently?');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn-sharesub red outline small">Delete</button>
-                    </form>
+                    @include('admin.partials.row-actions', ['editUrl' => route('admin.footer-groups.edit', $group), 'deleteUrl' => route('admin.footer-groups.destroy', $group), 'deleteConfirm' => 'Delete this link group and all its links permanently?', 'extraLinks' => [['url' => route('admin.footer-groups.show', $group), 'label' => 'View links']]])
                 </div>
             </li>
         @empty

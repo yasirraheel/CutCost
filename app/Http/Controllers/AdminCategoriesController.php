@@ -63,6 +63,7 @@ class AdminCategoriesController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'string', 'max:255', Rule::unique('categories', 'slug')->ignore($category?->id)],
             'icon_svg' => ['nullable', 'string'],
+            'description' => ['nullable', 'string'],
             'sort_order' => ['nullable', 'integer'],
             'is_active' => ['nullable', 'boolean'],
         ];
@@ -75,6 +76,7 @@ class AdminCategoriesController extends Controller
             'name' => $validated['name'],
             'slug' => $validated['slug'],
             'icon_svg' => $validated['icon_svg'] ?? null,
+            'description' => $validated['description'] ?? null,
             'sort_order' => $validated['sort_order'] ?? 0,
             'is_active' => $request->boolean('is_active'),
         ];

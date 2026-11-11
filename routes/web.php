@@ -2,15 +2,21 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminBrandsController;
+use App\Http\Controllers\AdminBrandFaqsController;
 use App\Http\Controllers\AdminCategoriesController;
+use App\Http\Controllers\AdminCountriesController;
 use App\Http\Controllers\AdminFaqsController;
 use App\Http\Controllers\AdminFeaturesController;
 use App\Http\Controllers\AdminFooterLinkGroupsController;
 use App\Http\Controllers\AdminFooterLinksController;
 use App\Http\Controllers\AdminHowItWorksStepsController;
+use App\Http\Controllers\AdminOffersController;
+use App\Http\Controllers\AdminPagesController;
 use App\Http\Controllers\AdminPanelController;
 use App\Http\Controllers\AdminPressItemsController;
+use App\Http\Controllers\AdminReassuranceController;
 use App\Http\Controllers\AdminSiteSettingsController;
+use App\Http\Controllers\AdminTemplatesController;
 use App\Http\Controllers\AdminTestimonialsController;
 use App\Http\Controllers\AdminUsersController;
 use App\Http\Controllers\CapturedPageController;
@@ -30,8 +36,8 @@ Route::get('/en/subscriptions', [CapturedPageController::class, 'show'])
     ->name('subscriptions');
 Route::get('/en/subscriptions/house', [CapturedPageController::class, 'show'])
     ->defaults('page', 'en/subscriptions/house.html');
-Route::get('/en/brand/amazon', [CapturedPageController::class, 'show'])
-    ->defaults('page', 'en/brand/amazon.html');
+Route::get('/en/brand/amazon', [CapturedPageController::class, 'showBrand'])
+    ->defaults('slug', 'amazon');
 Route::get('/en/brand/{slug}', [CapturedPageController::class, 'showBrand'])->where('slug', '[A-Za-z0-9][A-Za-z0-9-]*');
 Route::get('/en/subscriptions.html', fn () => redirect('/en/subscriptions', 301));
 Route::get('/en/subscriptions/house.html', fn () => redirect('/en/subscriptions/house', 301));
@@ -45,6 +51,7 @@ Route::get('/cms/en/buyer-protection-program', [CmsPageController::class, 'show'
     ->defaults('page', 'buyer-protection-program/index.html');
 Route::get('/cms/en/duolingo-family-plan-cost-current-discounts-on-duolingo-super-max', [CmsPageController::class, 'show'])
     ->defaults('page', 'duolingo-family-plan-cost-current-discounts-on-duolingo-super-max/index.html');
+Route::get('/cms/en/{page}', [CmsPageController::class, 'show'])->where('page', '[A-Za-z0-9][A-Za-z0-9-]*');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/en/userlogin', [AuthController::class, 'showLogin'])->name('login');
@@ -104,6 +111,12 @@ Route::middleware(['auth', 'role:admin'])->prefix('en/admin')->group(function ()
     Route::put('/footer-groups/{group}/links/{link}', [AdminFooterLinksController::class, 'update'])->name('admin.footer-links.update');
     Route::delete('/footer-groups/{group}/links/{link}', [AdminFooterLinksController::class, 'destroy'])->name('admin.footer-links.destroy');
     Route::resource('features', AdminFeaturesController::class)->names('admin.features')->parameters(['features' => 'feature'])->except('show');
+    Route::resource('countries', AdminCountriesController::class)->names('admin.countries')->parameters(['countries' => 'country'])->except('show');
+    Route::resource('templates', AdminTemplatesController::class)->names('admin.templates')->parameters(['templates' => 'template'])->except('show');
+    Route::resource('reassurance', AdminReassuranceController::class)->names('admin.reassurance')->parameters(['reassurance' => 'reassuranceItem'])->except('show');
+    Route::resource('brand-faqs', AdminBrandFaqsController::class)->names('admin.brand-faqs')->parameters(['brand-faqs' => 'brandFaq'])->except('show');
+    Route::resource('offers', AdminOffersController::class)->names('admin.offers')->parameters(['offers' => 'offer'])->except('show');
+    Route::resource('pages', AdminPagesController::class)->names('admin.pages')->parameters(['pages' => 'page'])->except('show');
     Route::get('/{section}', [AdminPanelController::class, 'show'])
         ->where('section', 'dashboard|shared-subscriptions|joined-subscriptions|waiting-list|wallet|cards|account|settings|chat');
 });

@@ -21,12 +21,7 @@
                     <div class="text-muted text-sm">{{ Str::limit($feature->text, 80) }} · Order {{ $feature->sort_order }} · {{ $feature->is_active ? 'Active' : 'Inactive' }}</div>
                 </div>
                 <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right">
-                    <a class="btn btn-light btn-sm" href="{{ route('admin.features.edit', $feature) }}">Edit</a>
-                    <form class="d-inline" method="POST" action="{{ route('admin.features.destroy', $feature) }}" onsubmit="return confirm('Delete this feature permanently?');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn-sharesub red outline small">Delete</button>
-                    </form>
+                    @include('admin.partials.row-actions', ['editUrl' => route('admin.features.edit', $feature), 'deleteUrl' => route('admin.features.destroy', $feature), 'deleteConfirm' => 'Delete this feature permanently?'])
                 </div>
             </li>
         @empty

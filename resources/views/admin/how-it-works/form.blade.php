@@ -12,6 +12,21 @@
         <textarea class="input-sharesub" id="icon_svg" name="icon_svg" rows="3">{{ old('icon_svg', $step->icon_svg) }}</textarea>
     </div>
     <div class="col-12 col-md-6 form-group">
+        <label for="audience">Audience</label>
+        <select class="input-sharesub" id="audience" name="audience">
+            <option value="share" @selected(old('audience', $step->audience ?? 'share') === 'share')>I want to share</option>
+            <option value="seat" @selected(old('audience', $step->audience ?? 'share') === 'seat')>I want a seat</option>
+        </select>
+    </div>
+    <div class="col-12 form-group">
+        <label for="mockup">Mockup image <span class="text-muted">(jpg, png, webp or svg, max 2 MB; shown in that step's mockup panel)</span></label>
+        @if ($step->mockup_image_path)
+            <div class="mb-2"><img src="{{ asset('storage/'.$step->mockup_image_path) }}" alt="" style="max-height: 120px;"></div>
+            <div class="mb-2 text-muted text-sm">Current: {{ $step->mockup_image_path }}</div>
+        @endif
+        <input class="input-sharesub" id="mockup" name="mockup" type="file" accept=".jpg,.jpeg,.png,.webp,.svg">
+    </div>
+    <div class="col-12 col-md-6 form-group">
         <label for="sort_order">Sort order</label>
         <input class="input-sharesub" id="sort_order" name="sort_order" type="number" value="{{ old('sort_order', $step->sort_order ?? 0) }}">
     </div>

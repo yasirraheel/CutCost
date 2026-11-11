@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\RendersAdminShell;
 use App\Models\HowItWorksStep;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class AdminHowItWorksStepsController extends Controller
 {
@@ -19,7 +21,7 @@ class AdminHowItWorksStepsController extends Controller
 
     public function create()
     {
-        $step = new HowItWorksStep(['is_active' => true]);
+        $step = new HowItWorksStep(['is_active' => true, 'audience' => 'share']);
 
         return $this->adminShell(view('admin.how-it-works.create', compact('step'))->render(), 'New step', '/en/admin/how-it-works');
     }
@@ -28,7 +30,11 @@ class AdminHowItWorksStepsController extends Controller
     {
         $validated = $request->validate($this->rules());
 
-        HowItWorksStep::create($this->attributes($request, $validated));
+        $step = new HowItWorksStep($this->attributes($request, $validated));
+        if ($request->hasFile('mockup')) {
+            $step->mockup_image_path = $request->file('mockup')->store('how-it-works', 'public');
+        }
+        $step->save();
 
         return redirect()->route('admin.how-it-works.index')->with('status', 'Step has been created.');
     }
@@ -42,7 +48,14 @@ class AdminHowItWorksStepsController extends Controller
     {
         $validated = $request->validate($this->rules());
 
+        $oldMockupPath = $step->mockup_image_path;
         $step->fill($this->attributes($request, $validated));
+        if ($request->hasFile('mockup')) {
+            if ($oldMockupPath) {
+                Storage::disk('public')->delete($oldMockupPath);
+            }
+            $step->mockup_image_path = $request->file('mockup')->store('how-it-works', 'public');
+        }
         $step->save();
 
         return redirect()->route('admin.how-it-works.edit', $step)->with('status', 'Step has been updated.');
@@ -50,6 +63,9 @@ class AdminHowItWorksStepsController extends Controller
 
     public function destroy(HowItWorksStep $step)
     {
+        if ($step->mockup_image_path) {
+            Storage::disk('public')->delete($step->mockup_image_path);
+        }
         $step->delete();
 
         return redirect()->route('admin.how-it-works.index')->with('status', 'Step has been deleted.');
@@ -62,6 +78,8 @@ class AdminHowItWorksStepsController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'text' => ['nullable', 'string'],
             'icon_svg' => ['nullable', 'string'],
+            'audience' => ['nullable', 'string', Rule::in(['share', 'seat'])],
+            'mockup' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,svg', 'max:2048'],
             'sort_order' => ['nullable', 'integer'],
             'is_active' => ['nullable', 'boolean'],
         ];
@@ -74,6 +92,7 @@ class AdminHowItWorksStepsController extends Controller
             'title' => $validated['title'],
             'text' => $validated['text'] ?? null,
             'icon_svg' => $validated['icon_svg'] ?? null,
+            'audience' => $validated['audience'] ?? 'share',
             'sort_order' => $validated['sort_order'] ?? 0,
             'is_active' => $request->boolean('is_active'),
         ];

@@ -40,5 +40,11 @@ class DatabaseSeeder extends Seeder
         );
 
         $this->call(ContentSeeder::class);
+        $this->call(TemplateSeeder::class);
+        $this->call(ReassuranceSeeder::class);
+        $this->call(BrandFaqSeeder::class);
+        $this->call(CountriesSeeder::class);
+        $this->call(PageSeeder::class);
+        $this->call(OfferSeeder::class);
     }
 }

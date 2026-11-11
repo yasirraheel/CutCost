@@ -18,14 +18,7 @@
                     <div class="text-muted text-sm">{{ $user->email }} · {{ ucfirst($user->role) }} · KYC: {{ str_replace('_', ' ', $user->kycSubmission?->status ?? 'not submitted') }}</div>
                 </div>
                 <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right">
-                    <a class="btn btn-light btn-sm" href="{{ route('admin.users.edit', $user) }}">Edit</a>
-                    @if (! $user->is(auth()->user()))
-                        <form class="d-inline" method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Delete this user permanently?');">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn-sharesub red outline small">Delete</button>
-                        </form>
-                    @endif
+                    @include('admin.partials.row-actions', ['editUrl' => route('admin.users.edit', $user), 'deleteUrl' => ! $user->is(auth()->user()) ? route('admin.users.destroy', $user) : null, 'deleteConfirm' => 'Delete this user permanently?'])
                 </div>
             </li>
         @empty

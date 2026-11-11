@@ -5,11 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'name',
     'slug',
     'price',
+    'full_price',
     'currency',
     'currency_symbol',
     'discount_percent',
@@ -29,6 +31,7 @@ class Brand extends Model
     {
         return [
             'price' => 'decimal:2',
+            'full_price' => 'decimal:2',
             'discount_percent' => 'integer',
             'is_featured' => 'boolean',
             'is_active' => 'boolean',
@@ -38,5 +41,15 @@ class Brand extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function templates(): HasMany
+    {
+        return $this->hasMany(Template::class);
+    }
+
+    public function brandFaqs(): HasMany
+    {
+        return $this->hasMany(BrandFaq::class);
     }
 }

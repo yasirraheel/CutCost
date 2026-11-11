@@ -18,15 +18,10 @@
                 <div class="col-1 text-right">📋</div>
                 <div class="col">
                     <strong>{{ $step->title }}</strong>
-                    <div class="text-muted text-sm">{{ Str::limit($step->text, 80) }} · Order {{ $step->sort_order }} · {{ $step->is_active ? 'Active' : 'Inactive' }}</div>
+                    <div class="text-muted text-sm">{{ Str::limit($step->text, 80) }} · {{ $step->audience === 'seat' ? 'I want a seat' : 'I want to share' }} · Order {{ $step->sort_order }} · {{ $step->is_active ? 'Active' : 'Inactive' }}</div>
                 </div>
                 <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right">
-                    <a class="btn btn-light btn-sm" href="{{ route('admin.how-it-works.edit', $step) }}">Edit</a>
-                    <form class="d-inline" method="POST" action="{{ route('admin.how-it-works.destroy', $step) }}" onsubmit="return confirm('Delete this step permanently?');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn-sharesub red outline small">Delete</button>
-                    </form>
+                    @include('admin.partials.row-actions', ['editUrl' => route('admin.how-it-works.edit', $step), 'deleteUrl' => route('admin.how-it-works.destroy', $step), 'deleteConfirm' => 'Delete this step permanently?'])
                 </div>
             </li>
         @empty

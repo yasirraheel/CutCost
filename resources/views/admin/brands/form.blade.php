@@ -12,6 +12,10 @@
         <input class="input-sharesub" id="price" name="price" type="number" step="0.01" min="0" value="{{ old('price', $brand->price) }}" required>
     </div>
     <div class="col-12 col-md-4 form-group">
+        <label for="full_price">Full price</label>
+        <input class="input-sharesub" id="full_price" name="full_price" type="number" step="0.01" min="0" value="{{ old('full_price', $brand->full_price) }}">
+    </div>
+    <div class="col-12 col-md-4 form-group">
         <label for="currency">Currency code</label>
         <input class="input-sharesub" id="currency" name="currency" maxlength="3" value="{{ old('currency', $brand->currency) }}">
     </div>

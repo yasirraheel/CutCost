@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
     'text',
     'icon_path',
     'icon_svg',
+    'link_url',
     'sort_order',
     'is_active',
 ])]

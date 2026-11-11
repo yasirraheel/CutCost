@@ -22,12 +22,7 @@
                     <div class="text-muted text-sm">{{ Str::limit($testimonial->quote, 80) }}</div>
                 </div>
                 <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right">
-                    <a class="btn btn-light btn-sm" href="{{ route('admin.testimonials.edit', $testimonial) }}">Edit</a>
-                    <form class="d-inline" method="POST" action="{{ route('admin.testimonials.destroy', $testimonial) }}" onsubmit="return confirm('Delete this testimonial permanently?');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn-sharesub red outline small">Delete</button>
-                    </form>
+                    @include('admin.partials.row-actions', ['editUrl' => route('admin.testimonials.edit', $testimonial), 'deleteUrl' => route('admin.testimonials.destroy', $testimonial), 'deleteConfirm' => 'Delete this testimonial permanently?'])
                 </div>
             </li>
         @empty
