@@ -118,6 +118,8 @@ class CapturedPageController extends Controller
             ) ?? $html;
         }
 
+        $html = $this->normalizePageLinks($html);
+
         return response($html)
             ->header('Content-Type', 'text/html; charset=UTF-8')
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -127,9 +129,13 @@ class CapturedPageController extends Controller
     {
         $path = trim($path, '/');
 
+        if (str_ends_with($path, '.html')) {
+            return redirect('/'.substr($path, 0, -5), 301);
+        }
+
         foreach ([$path, $path.'.html', $path.'/index.html'] as $candidate) {
             if (isset(self::PROTECTED_PAGES[$candidate]) && ! Auth::check()) {
-                return redirect()->guest('/en/userlogin.html?return='.urlencode('/'.$path));
+                return redirect()->guest('/en/userlogin?return='.urlencode('/'.$path));
             }
 
             if ($this->pageExists($candidate)) {
@@ -160,6 +166,8 @@ class CapturedPageController extends Controller
         } else {
             $html = $this->applyAccountData($html, $page);
         }
+
+        $html = $this->normalizePageLinks($html);
 
         return response($html)->header('Content-Type', 'text/html; charset=UTF-8');
     }
@@ -620,6 +628,22 @@ HTML;
         return preg_replace(
             '/(name="_token"\s+value=")[^"]*(")/i',
             '$1'.csrf_token().'$2',
+            $html,
+        ) ?? $html;
+    }
+
+    protected function normalizePageLinks(string $html): string
+    {
+        return preg_replace_callback(
+            '/\b(href|action)=(")?(\/(?:en|cms\/en)\/[^"\'\s>]*?)\.html((?:[?#][^"\']*)?)(")/i',
+            static function (array $match): string {
+                $path = $match[3];
+                if (str_ends_with($path, '/index')) {
+                    $path = substr($path, 0, -6);
+                }
+
+                return $match[1].'="'.$path.$match[4].'"';
+            },
             $html,
         ) ?? $html;
     }

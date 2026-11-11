@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminPanelController;
 use App\Http\Controllers\CapturedPageController;
+use App\Http\Controllers\CmsPageController;
 use App\Http\Controllers\KycController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -10,25 +11,36 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [CapturedPageController::class, 'show'])->defaults('page', 'index.html');
 Route::get('/en', [CapturedPageController::class, 'show'])->defaults('page', 'en/index.html')->name('home');
 Route::get('/en/', [CapturedPageController::class, 'show'])->defaults('page', 'en/index.html');
-Route::get('/en/index.html', [CapturedPageController::class, 'show'])->defaults('page', 'en/index.html');
+Route::get('/en/index', [CapturedPageController::class, 'show'])->defaults('page', 'en/index.html');
+Route::get('/en/index.html', fn () => redirect('/en', 301));
 
 Route::get('/en/subscriptions', [CapturedPageController::class, 'show'])
     ->defaults('page', 'en/subscriptions.html')
     ->name('subscriptions');
-Route::get('/en/subscriptions.html', [CapturedPageController::class, 'show'])
-    ->defaults('page', 'en/subscriptions.html');
-Route::get('/en/subscriptions/house.html', [CapturedPageController::class, 'show'])
+Route::get('/en/subscriptions/house', [CapturedPageController::class, 'show'])
     ->defaults('page', 'en/subscriptions/house.html');
-Route::get('/en/brand/amazon.html', [CapturedPageController::class, 'show'])
+Route::get('/en/brand/amazon', [CapturedPageController::class, 'show'])
     ->defaults('page', 'en/brand/amazon.html');
+Route::get('/en/subscriptions.html', fn () => redirect('/en/subscriptions', 301));
+Route::get('/en/subscriptions/house.html', fn () => redirect('/en/subscriptions/house', 301));
+Route::get('/en/brand/amazon.html', fn () => redirect('/en/brand/amazon', 301));
+
+Route::get('/cms/en', [CmsPageController::class, 'show'])->defaults('page', 'index.html');
+Route::get('/cms/en/team', [CmsPageController::class, 'show'])->defaults('page', 'team/index.html');
+Route::get('/cms/en/legal', [CmsPageController::class, 'show'])->defaults('page', 'legal/index.html');
+Route::get('/cms/en/legal/tos', [CmsPageController::class, 'show'])->defaults('page', 'legal/tos/index.html');
+Route::get('/cms/en/buyer-protection-program', [CmsPageController::class, 'show'])
+    ->defaults('page', 'buyer-protection-program/index.html');
+Route::get('/cms/en/duolingo-family-plan-cost-current-discounts-on-duolingo-super-max', [CmsPageController::class, 'show'])
+    ->defaults('page', 'duolingo-family-plan-cost-current-discounts-on-duolingo-super-max/index.html');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/en/userlogin', [AuthController::class, 'showLogin'])->name('login');
-    Route::get('/en/userlogin.html', [AuthController::class, 'showLogin']);
+    Route::get('/en/userlogin.html', fn () => redirect('/en/userlogin', 301));
     Route::post('/en/userlogin', [AuthController::class, 'login']);
 
     Route::get('/en/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::get('/en/register.html', [AuthController::class, 'showRegister']);
+    Route::get('/en/register.html', fn () => redirect('/en/register', 301));
     Route::post('/en/register', [AuthController::class, 'register']);
 });
 
@@ -82,8 +94,7 @@ foreach ($protectedPages as $name => [$canonicalPath, $htmlPath]) {
         ->middleware('auth')
         ->name('user.'.$name);
 
-    Route::get('/'.$htmlPath, [CapturedPageController::class, 'show'])
-        ->defaults('page', $htmlPath)
+    Route::get('/'.$htmlPath, fn () => redirect('/'.$canonicalPath, 301))
         ->middleware('auth');
 
     if ($name === 'account') {
