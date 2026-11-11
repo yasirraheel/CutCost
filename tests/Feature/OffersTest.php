@@ -36,6 +36,8 @@ class OffersTest extends TestCase
     {
         return Offer::create(array_merge([
             'brand_id' => $brand->id,
+            'user_id' => null,
+            'status' => 'active',
             'title' => 'Amazon Prime Video - with ads',
             'price' => 4.23,
             'currency' => 'GBP',

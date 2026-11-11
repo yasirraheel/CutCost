@@ -21,6 +21,7 @@ use App\Http\Controllers\AdminTestimonialsController;
 use App\Http\Controllers\AdminUsersController;
 use App\Http\Controllers\CapturedPageController;
 use App\Http\Controllers\CmsPageController;
+use App\Http\Controllers\CreateSubscriptionController;
 use App\Http\Controllers\KycController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -151,6 +152,31 @@ foreach ($protectedPages as $name => [$canonicalPath, $htmlPath]) {
             ->middleware('auth');
     }
 }
+
+Route::middleware('auth')->group(function (): void {
+    Route::get('/en/create-subscription', [CreateSubscriptionController::class, 'show'])
+        ->name('user.create-subscription');
+    Route::post('/en/create-subscription/step', [CreateSubscriptionController::class, 'saveStep'])
+        ->name('user.create-subscription.step');
+    Route::post('/en/create-subscription', [CreateSubscriptionController::class, 'publish'])
+        ->name('user.create-subscription.store');
+    Route::get('/en/get-brands', [CreateSubscriptionController::class, 'getBrands'])
+        ->name('user.get-brands');
+    Route::get('/en/get-templates', [CreateSubscriptionController::class, 'getTemplates'])
+        ->name('user.get-templates');
+    Route::post('/en/create-subscription/draft', [CreateSubscriptionController::class, 'storeDraft'])
+        ->name('user.create-subscription.draft');
+    Route::post('/en/create-subscription/draft/check', [CreateSubscriptionController::class, 'checkDraft'])
+        ->name('user.create-subscription.draft.check');
+    Route::post('/en/create-subscription/check-brand', [CreateSubscriptionController::class, 'checkBrand'])
+        ->name('user.create-subscription.check-brand');
+    Route::get('/en/create-subscription/{offer}/edit', [CreateSubscriptionController::class, 'edit'])
+        ->name('user.create-subscription.edit');
+    Route::put('/en/create-subscription/{offer}', [CreateSubscriptionController::class, 'update'])
+        ->name('user.create-subscription.update');
+    Route::delete('/en/create-subscription/{offer}', [CreateSubscriptionController::class, 'destroy'])
+        ->name('user.create-subscription.destroy');
+});
 
 // Keep all supplied captured pages routable while avoiding a new design layer.
 Route::get('/{path}', [CapturedPageController::class, 'fallback'])->where('path', '.*');

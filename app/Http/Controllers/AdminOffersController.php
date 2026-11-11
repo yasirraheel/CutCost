@@ -31,6 +31,9 @@ class AdminOffersController extends Controller
         $validated = $request->validate($this->rules());
 
         $offer = new Offer($this->attributes($request, $validated));
+        // An offer created in the admin panel is a published join offer,
+        // not a user draft, so it starts active.
+        $offer->status = 'active';
         $offer->save();
 
         return redirect()->route('admin.offers.index')->with('status', 'Offer has been created.');

@@ -8,7 +8,27 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'brand_id',
+    'user_id',
+    'status',
+    'hash',
+    'template_id',
+    'category_id',
+    'country_id',
     'title',
+    'name',
+    'description',
+    'share',
+    'friends',
+    'total_seats',
+    'total_price',
+    'custom_price',
+    'frequency',
+    'visibility',
+    'lat',
+    'lng',
+    'email',
+    'secured_description',
+    'credentials',
     'price',
     'currency',
     'seats_total',
@@ -23,12 +43,49 @@ class Offer extends Model
     {
         return [
             'price' => 'decimal:2',
+            'total_price' => 'decimal:2',
             'is_active' => 'boolean',
+            'custom_price' => 'boolean',
+            'lat' => 'float',
+            'lng' => 'float',
+            'secured_description' => 'array',
+            // Credential values are encrypted at rest, never stored plain.
+            'credentials' => 'encrypted:array',
         ];
     }
 
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(Template::class);
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    public function country(): BelongsTo
+    {
+        return $this->belongsTo(Country::class);
+    }
+
+    public function isDraft(): bool
+    {
+        return $this->status === 'draft';
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->status === 'active';
     }
 }

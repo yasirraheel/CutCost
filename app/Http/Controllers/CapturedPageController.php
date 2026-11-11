@@ -662,6 +662,7 @@ class CapturedPageController extends Controller
     protected function calculatorBrandPayload(mixed $brand, mixed $template): array
     {
         $brandUrl = '/en/brand/'.(string) $brand->slug.'?template='.(string) $template->slug;
+        $createUrl = '/en/create-subscription?template='.(string) $template->slug.'&country=united-kingdom';
         $retail = $template->retail_price !== null ? number_format((float) $template->retail_price, 2, '.', '') : null;
 
         return [
@@ -675,7 +676,7 @@ class CapturedPageController extends Controller
                 'seats' => $template->seats !== null ? (int) $template->seats : null,
                 'shareable_seats' => $template->shareable_seats !== null ? (int) $template->shareable_seats : null,
                 'available_seats' => $template->available_seats !== null ? (int) $template->available_seats : null,
-                'create_url' => $brandUrl,
+                'create_url' => $createUrl,
                 'listing_url' => $brandUrl,
                 'current_country_price_with_fees' => (float) $template->price_with_fees,
                 'name' => (string) $template->name,
@@ -2006,7 +2007,11 @@ class CapturedPageController extends Controller
             $html = $this->replaceDashboardCta($html);
             $html = $this->replaceDashboardChecklist($html);
         } elseif ($page === 'en/my-shared-subscriptions.html') {
+            $html = $this->replaceCreateSubscriptionLink($html);
+            $html = $this->renderMySharedOffers($html);
             $html = $this->replaceEmptyText($html, 'shared_empty_text');
+        } elseif ($page === 'en/subscriptions.html') {
+            $html = $this->replaceProposeSubscriptionLinks($html);
         } elseif ($page === 'en/joined-subscriptions.html') {
             $html = $this->replaceEmptyText($html, 'joined_empty_text');
         } elseif ($page === 'en/waiting-list.html') {
@@ -2116,6 +2121,110 @@ class CapturedPageController extends Controller
             $html,
             1,
         ) ?? $html;
+    }
+
+    /**
+     * Point the Create subscription button on My shared subscriptions at
+     * the wizard instead of the registration page. The captured href is
+     * a guest-state link; logged in users own this page.
+     */
+    protected function replaceCreateSubscriptionLink(string $html): string
+    {
+        return str_replace(
+            '<a href="/en/register.html" class="btn btn-sharesub green mb-2 mb-sm-0">',
+            '<a href="/en/create-subscription" class="btn btn-sharesub green mb-2 mb-sm-0">',
+            $html,
+        );
+    }
+
+    /**
+     * Point the Propose a subscription calls to action on the catalogue
+     * page at the wizard instead of the registration page.
+     */
+    protected function replaceProposeSubscriptionLinks(string $html): string
+    {
+        return preg_replace(
+            '/(<a href=")\/en\/register\.html(" class="btn btn-sharesub green[^"]*">)/',
+            '$1/en/create-subscription$2',
+            $html,
+        ) ?? $html;
+    }
+
+    /**
+     * List the logged in user's own offers, draft and active, inside
+     * .subscriptions-items on My shared subscriptions, replacing the
+     * empty state. Guests never reach this page: the route is auth only.
+     * Each row reuses the captured list classes and links to the wizard
+     * edit page, with a delete form next to it.
+     */
+    protected function renderMySharedOffers(string $html): string
+    {
+        if (! Auth::check()) {
+            return $html;
+        }
+
+        try {
+            if (! class_exists(Offer::class) || ! Schema::hasTable('offers')) {
+                return $html;
+            }
+
+            $offers = Offer::where('user_id', Auth::id())
+                ->orderByDesc('updated_at')->orderByDesc('id')->get();
+        } catch (\Throwable) {
+            return $html;
+        }
+
+        if ($offers->isEmpty()) {
+            return $html;
+        }
+
+        $rows = '';
+        foreach ($offers as $offer) {
+            $rows .= $this->renderMySharedOfferRow($offer);
+        }
+
+        return preg_replace_callback(
+            '/(<div class="subscriptions-items">).*?(<\/div>\s*<div class="pagination-green)/s',
+            static fn (array $matches): string => $matches[1]."\n".$rows.$matches[2],
+            $html,
+            1,
+        ) ?? $html;
+    }
+
+    protected function renderMySharedOfferRow(mixed $offer): string
+    {
+        $name = (string) ($offer->name ?? $offer->title ?? '');
+        $brand = null;
+        try {
+            $brand = $offer->brand;
+        } catch (\Throwable) {
+            $brand = null;
+        }
+
+        $symbol = $brand !== null ? (string) ($brand->currency_symbol ?? '') : '';
+        if ($symbol === '') {
+            $symbol = strtoupper((string) ($offer->currency ?? 'GBP')) === 'EUR' ? '€' : '£';
+        }
+
+        $frequency = [1 => '/ week', 2 => '/ month', 3 => '/ quarter', 4 => '/ year'][(int) ($offer->frequency ?? 2)] ?? '/ month';
+        $status = $offer->status === 'active' ? 'Active' : 'Draft';
+        $seats = $offer->friends !== null ? (int) $offer->friends.' seat'.((int) $offer->friends === 1 ? '' : 's').' offered' : '';
+        $meta = trim($symbol.number_format((float) $offer->price, 2).' '.$frequency.($seats !== '' ? ' · '.$seats : '').' · '.$status);
+
+        return '<div class="row align-items-center mb-3">'."\n"
+            .'<div class="col">'."\n"
+            .'<strong>'.e($name).'</strong>'."\n"
+            .'<div class="text-muted text-sm">'.e($meta).'</div>'."\n"
+            .'</div>'."\n"
+            .'<div class="col-12 col-md-4 text-md-right">'."\n"
+            .'<a class="btn-sharesub bleu" href="/en/create-subscription/'.(int) $offer->id.'/edit">Edit</a> '."\n"
+            .'<form method="POST" action="/en/create-subscription/'.(int) $offer->id.'" style="display:inline;">'."\n"
+            .'<input type="hidden" name="_token" value="'.csrf_token().'">'."\n"
+            .'<input type="hidden" name="_method" value="DELETE">'."\n"
+            .'<button type="submit" class="btn-sharesub bleu" onclick="return confirm(\'Delete this subscription?\')">Delete</button>'."\n"
+            .'</form>'."\n"
+            .'</div>'."\n"
+            .'</div>'."\n";
     }
 
     /**
@@ -2615,7 +2724,7 @@ class CapturedPageController extends Controller
                 return collect();
             }
 
-            return Offer::where('brand_id', $brandId)->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get();
+            return Offer::where('brand_id', $brandId)->where('is_active', true)->where('status', 'active')->orderBy('sort_order')->orderBy('id')->get();
         } catch (\Throwable) {
             return collect();
         }
