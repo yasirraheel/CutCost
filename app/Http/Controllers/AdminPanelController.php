@@ -141,7 +141,8 @@ class AdminPanelController extends Controller
 HTML;
 
         $platformSection = substr($html, $revenuesStart, $paymentsStart - $revenuesStart);
-        $html = substr($html, 0, $shareStart).$platformSection.$adminCards.substr($html, $paymentsStart);
+        $discoverSection = $this->discoverSection();
+        $html = substr($html, 0, $shareStart).$platformSection.$discoverSection.$adminCards.substr($html, $paymentsStart);
         $pending = KycSubmission::where('status', KycSubmission::STATUS_UNDER_REVIEW)->count();
         $approved = KycSubmission::where('status', KycSubmission::STATUS_APPROVED)->count();
         $users = User::count();
@@ -185,5 +186,36 @@ HTML;
         );
 
         return $html;
+    }
+
+    protected function discoverSection(): string
+    {
+        $source = file_get_contents(resource_path('captured/en/my-shared-subscriptions.html'));
+
+        if ($source === false) {
+            return '';
+        }
+
+        $start = strpos($source, '<div class="subscriptions-suggestions">');
+        if ($start === false) {
+            return '';
+        }
+
+        preg_match_all('/<\/?div\b[^>]*>/i', $source, $tags, PREG_OFFSET_CAPTURE, $start);
+        $depth = 0;
+        foreach ($tags[0] as [$tag, $offset]) {
+            $depth += str_starts_with(strtolower($tag), '</div') ? -1 : 1;
+            if ($depth === 0) {
+                $section = substr($source, $start, $offset + strlen($tag) - $start);
+
+                return str_replace(
+                    '<div class="subscriptions-suggestions">',
+                    '<div class="subscriptions-suggestions mt-4">',
+                    $section,
+                );
+            }
+        }
+
+        return '';
     }
 }
