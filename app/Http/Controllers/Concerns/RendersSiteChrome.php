@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Concerns;
 
 use App\Models\FooterLinkGroup;
 use App\Models\SiteSetting;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 trait RendersSiteChrome
@@ -40,6 +41,8 @@ trait RendersSiteChrome
                 $html = $this->replaceFooterLinks($html);
             }
             $html = $this->replaceShareSubscriptionLinks($html);
+            $html = $this->injectSupportChatWidget($html);
+            $html = $this->replaceCreateAccountButtons($html);
             $html = $this->removeDeadRecaptchaInputs($html);
         } catch (\Throwable) {
             return $original;
@@ -110,6 +113,61 @@ trait RendersSiteChrome
                     '/href="(?:\/en\/register(?:\.html)?|#offline)"/',
                     'href="/en/create-subscription"',
                     $anchor,
+                    1,
+                );
+            },
+            $html,
+        ) ?? $html;
+    }
+
+    /**
+     * Load the bottom-right support chat widget script on logged-in
+     * non-admin pages. The script builds the panel itself from the
+     * captured chat classes and talks to the support endpoints; admin
+     * users get the support inbox instead, so they never load it.
+     */
+    protected function injectSupportChatWidget(string $html): string
+    {
+        if (! Auth::check() || Auth::user()->isAdmin()) {
+            return $html;
+        }
+
+        $position = strrpos($html, '</body>');
+
+        if ($position === false) {
+            return $html;
+        }
+
+        return substr($html, 0, $position)
+            .'<script src="/js/support-chat.js" defer></script>'."\n"
+            .substr($html, $position);
+    }
+
+    /**
+     * The "Create my account" calls to action are dead links in the
+     * capture (#offline): the hero see-all button and the second call
+     * to action block on the homepage. A guest goes to the
+     * registration page; a logged in user already has an account, so
+     * the buttons are removed instead of pointing anywhere. The match
+     * stays inside one anchor (an <img> sits before the label in the
+     * call to action button), so a #offline link earlier on the page
+     * can never swallow content up to the label.
+     */
+    protected function replaceCreateAccountButtons(string $html): string
+    {
+        $loggedIn = Auth::check();
+
+        return preg_replace_callback(
+            '/<a\b(?=[^>]*\bclass="[^"]*\bbtn-sharesub\b[^"]*")[^>]*href="(?:#offline|\/en\/register(?:\.html)?)"[^>]*>(?:(?!<\/a>).)*?Create my account\s*<\/a>/is',
+            static function (array $match) use ($loggedIn): string {
+                if ($loggedIn) {
+                    return '';
+                }
+
+                return (string) preg_replace(
+                    '/href="(?:#offline|\/en\/register(?:\.html)?)"/',
+                    'href="/en/register"',
+                    $match[0],
                     1,
                 );
             },

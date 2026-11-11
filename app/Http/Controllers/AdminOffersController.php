@@ -13,11 +13,33 @@ class AdminOffersController extends Controller
 {
     use RendersAdminShell;
 
-    public function index()
+    public function index(Request $request)
     {
-        $offers = Offer::with('brand')->orderBy('sort_order')->latest()->paginate(20);
+        $status = $request->query('status', 'all');
+        $statuses = [
+            Offer::STATUS_PENDING_REVIEW,
+            Offer::STATUS_ACTIVE,
+            Offer::STATUS_REJECTED,
+            Offer::STATUS_DRAFT,
+            Offer::STATUS_TERMINATED,
+        ];
 
-        return $this->adminShell(view('admin.offers.index', compact('offers'))->render(), 'Offers', '/en/admin/offers');
+        $query = Offer::with('brand');
+
+        if (in_array($status, $statuses, true)) {
+            $query->where('status', $status);
+        } else {
+            $status = 'all';
+        }
+
+        $offers = $query->orderBy('sort_order')->latest()->paginate(20)->withQueryString();
+
+        $counts = ['all' => Offer::count()];
+        foreach ($statuses as $value) {
+            $counts[$value] = Offer::where('status', $value)->count();
+        }
+
+        return $this->adminShell(view('admin.offers.index', compact('offers', 'status', 'counts'))->render(), 'Offers', '/en/admin/offers');
     }
 
     public function create()
@@ -34,12 +56,13 @@ class AdminOffersController extends Controller
         $validated = $request->validate($this->rules());
 
         $offer = new Offer($this->attributes($request, $validated));
-        // An offer created in the admin panel is a published join offer,
-        // not a user draft, so it starts active.
-        $offer->status = 'active';
+        // An offer created in the admin panel goes into review like a
+        // user-created offer: it starts pending and is approved from
+        // the admin Offers list, so nothing goes live unreviewed.
+        $offer->status = Offer::STATUS_PENDING_REVIEW;
         $offer->save();
 
-        return redirect()->route('admin.offers.index')->with('status', 'Offer has been created.');
+        return redirect()->route('admin.offers.index')->with('status', 'Offer has been created and is waiting for review.');
     }
 
     public function edit(Offer $offer)

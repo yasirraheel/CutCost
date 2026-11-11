@@ -17,6 +17,7 @@ use App\Http\Controllers\AdminPanelController;
 use App\Http\Controllers\AdminPressItemsController;
 use App\Http\Controllers\AdminReassuranceController;
 use App\Http\Controllers\AdminSiteSettingsController;
+use App\Http\Controllers\AdminSupportController;
 use App\Http\Controllers\AdminTemplatesController;
 use App\Http\Controllers\AdminTestimonialsController;
 use App\Http\Controllers\AdminUsersController;
@@ -29,7 +30,9 @@ use App\Http\Controllers\CreateSubscriptionController;
 use App\Http\Controllers\DocumentsController;
 use App\Http\Controllers\KycController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SupportChatController;
 use App\Http\Controllers\WalletController;
+use App\Http\Middleware\RedirectAdminFromUserPanel;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect('/en/', 301));
@@ -72,7 +75,7 @@ Route::middleware('guest')->group(function (): void {
 
 Route::post('/en/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
-Route::middleware('auth')->group(function (): void {
+Route::middleware(['auth', RedirectAdminFromUserPanel::class])->group(function (): void {
     Route::post('/en/my-settings/security', [SettingsController::class, 'updatePassword'])
         ->name('user.settings.password');
     Route::post('/en/my-settings/preferences', [SettingsController::class, 'updatePreferences'])
@@ -83,12 +86,12 @@ Route::middleware('auth')->group(function (): void {
         ->name('user.settings.delete');
 });
 
-Route::middleware('auth')->group(function (): void {
+Route::middleware(['auth', RedirectAdminFromUserPanel::class])->group(function (): void {
     Route::get('/en/my-account/identity', [KycController::class, 'show'])->name('user.identity');
     Route::post('/en/my-account/identity', [KycController::class, 'submit']);
 });
 
-Route::middleware('auth')->group(function (): void {
+Route::middleware(['auth', RedirectAdminFromUserPanel::class])->group(function (): void {
     Route::get('/en/my-documents', [DocumentsController::class, 'show'])->name('user.documents');
     Route::get('/en/my-wallet', [WalletController::class, 'show'])->name('user.wallet');
     Route::get('/en/my-cards', [CardsController::class, 'show'])->name('user.cards');
@@ -139,6 +142,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('en/admin')->group(function ()
     Route::resource('pages', AdminPagesController::class)->names('admin.pages')->parameters(['pages' => 'page'])->except('show');
     Route::get('/{section}', [AdminPanelController::class, 'show'])
         ->where('section', 'dashboard|shared-subscriptions|joined-subscriptions|waiting-list|wallet|cards|account|settings|chat');
+    Route::get('/support', [AdminSupportController::class, 'index'])->name('admin.support.index');
+    Route::get('/support/{user}', [AdminSupportController::class, 'show'])->name('admin.support.show');
+    Route::post('/support/{user}/message', [AdminSupportController::class, 'reply'])->name('admin.support.reply');
 });
 
 $protectedPages = [
@@ -153,19 +159,19 @@ $protectedPages = [
 foreach ($protectedPages as $name => [$canonicalPath, $htmlPath]) {
     Route::get('/'.$canonicalPath, [CapturedPageController::class, 'show'])
         ->defaults('page', $htmlPath)
-        ->middleware('auth')
+        ->middleware(['auth', RedirectAdminFromUserPanel::class])
         ->name('user.'.$name);
 
     Route::get('/'.$htmlPath, fn () => redirect('/'.$canonicalPath, 301))
-        ->middleware('auth');
+        ->middleware(['auth', RedirectAdminFromUserPanel::class]);
 
     if ($name === 'account') {
         Route::post('/'.$canonicalPath, [AuthController::class, 'updateAccount'])
-            ->middleware('auth')
+            ->middleware(['auth', RedirectAdminFromUserPanel::class])
             ->name('user.account.update');
 
         Route::post('/'.$htmlPath, [AuthController::class, 'updateAccount'])
-            ->middleware('auth');
+            ->middleware(['auth', RedirectAdminFromUserPanel::class]);
     }
 }
 
@@ -173,7 +179,7 @@ foreach ($protectedPages as $name => [$canonicalPath, $htmlPath]) {
 // offer_members row id: the detail page, the messages view and every
 // endpoint live under /en/my-chat/subscription/{memberId}/, because
 // the demo offers carry no hash for the captured hash based URLs.
-Route::middleware('auth')->group(function (): void {
+Route::middleware(['auth', RedirectAdminFromUserPanel::class])->group(function (): void {
     Route::get('/en/my-chat/subscriptions', [ChatController::class, 'index'])->name('user.chat');
     Route::get('/en/my-chat/subscriptions.html', fn () => redirect('/en/my-chat/subscriptions', 301))
         ->middleware('auth');
@@ -201,7 +207,7 @@ Route::middleware('auth')->group(function (): void {
         ->name('user.chat.moderate');
 });
 
-Route::middleware('auth')->group(function (): void {
+Route::middleware(['auth', RedirectAdminFromUserPanel::class])->group(function (): void {
     // Shared-subscription detail page (Raw Pages 2): detail by offer
     // hash (or id when the offer has no hash), plus the tab POSTs.
     Route::get('/en/my-shared-subscriptions/{identifier}', [CapturedPageController::class, 'showSharedOffer'])
@@ -221,7 +227,7 @@ Route::middleware('auth')->group(function (): void {
         ->name('user.shared-offer.end');
 });
 
-Route::middleware('auth')->group(function (): void {
+Route::middleware(['auth', RedirectAdminFromUserPanel::class])->group(function (): void {
     Route::get('/en/create-subscription', [CreateSubscriptionController::class, 'show'])
         ->name('user.create-subscription');
     Route::post('/en/create-subscription/step', [CreateSubscriptionController::class, 'saveStep'])
@@ -244,6 +250,14 @@ Route::middleware('auth')->group(function (): void {
         ->name('user.create-subscription.update');
     Route::delete('/en/create-subscription/{offer}', [CreateSubscriptionController::class, 'destroy'])
         ->name('user.create-subscription.destroy');
+});
+
+// Support chat: bottom-right widget endpoints (SupportChatController).
+// These MUST stay above the catch-all fallback at the end of this file.
+Route::middleware(['auth', RedirectAdminFromUserPanel::class])->group(function (): void {
+    Route::get('/en/support-chat/messages', [SupportChatController::class, 'messages'])->name('user.support-chat.messages');
+    Route::get('/en/support-chat/unread', [SupportChatController::class, 'unread'])->name('user.support-chat.unread');
+    Route::post('/en/support-chat/message', [SupportChatController::class, 'send'])->name('user.support-chat.send');
 });
 
 // Keep all supplied captured pages routable while avoiding a new design layer.

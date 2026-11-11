@@ -80,6 +80,9 @@
     window.pushKey = "";
 </script>
 <script src="/js/app.js?v=laravel-auth-1" defer></script>
+@auth
+<script src="/js/support-chat.js" defer></script>
+@endauth
 @stack('scripts')
 </body>
 </html>

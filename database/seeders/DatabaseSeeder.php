@@ -46,6 +46,7 @@ class DatabaseSeeder extends Seeder
         $this->call(BrandFaqSeeder::class);
         $this->call(CountriesSeeder::class);
         $this->call(PageSeeder::class);
+        $this->call(FeatureDestinationPagesSeeder::class);
         $this->call(OfferSeeder::class);
         $this->call(RawPages2DemoSeeder::class);
     }

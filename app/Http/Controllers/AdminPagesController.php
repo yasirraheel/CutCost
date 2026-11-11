@@ -94,7 +94,7 @@ class AdminPagesController extends Controller
         }
 
         return [
-            'slug' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9-]+$/', Rule::unique('pages', 'slug')->ignore($page?->id)],
+            'slug' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9-]+(?:\/[a-z0-9-]+)*$/', Rule::unique('pages', 'slug')->ignore($page?->id)],
             'type' => ['required', 'string', Rule::in($types)],
             'title' => ['required', 'string', 'max:255'],
             'excerpt' => ['nullable', 'string'],

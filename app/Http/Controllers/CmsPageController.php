@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Page;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -53,6 +54,7 @@ class CmsPageController extends Controller
         $html = $this->normalizeLinks($html);
         $html = $this->fixSpeculationRules($html);
         $html = $this->replaceShareSubscriptionLinks($html);
+        $html = $this->replaceMyAccountLink($html);
 
         return response($html)
             ->header('Content-Type', 'text/html; charset=UTF-8')
@@ -101,6 +103,33 @@ class CmsPageController extends Controller
             },
             $html,
         ) ?? $html;
+    }
+
+    /**
+     * The CMS header carries a "My account" menu link pointing at
+     * /en/userlogin. Guests keep it; a logged in user goes to their
+     * dashboard instead, and an admin goes to the admin panel, so
+     * the link never lands on the guest-middleware redirect.
+     */
+    protected function replaceMyAccountLink(string $html): string
+    {
+        if (! Auth::check()) {
+            return $html;
+        }
+
+        if (Auth::user()->isAdmin()) {
+            return str_replace(
+                '<a href="/en/userlogin">My account</a>',
+                '<a href="/en/admin">Admin panel</a>',
+                $html,
+            );
+        }
+
+        return str_replace(
+            '<a href="/en/userlogin">My account</a>',
+            '<a href="/en/dashboard">My account</a>',
+            $html,
+        );
     }
 
     /**
@@ -160,6 +189,7 @@ class CmsPageController extends Controller
         $html = $this->normalizeLinks($html);
         $html = $this->fixSpeculationRules($html);
         $html = $this->replaceShareSubscriptionLinks($html);
+        $html = $this->replaceMyAccountLink($html);
         $html = $this->replaceTitleTag($html, (string) $page->title);
         $html = preg_replace_callback(
             '/(<h1\b[^>]*>).*?(<\/h1>)/s',

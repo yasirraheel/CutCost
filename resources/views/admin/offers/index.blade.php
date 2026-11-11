@@ -3,6 +3,12 @@
         <h3 class="dashboard-progress-title mb-0">Offers</h3>
         <a class="btn-sharesub bleu" style="width: auto;" href="{{ route('admin.offers.create') }}">Add offer</a>
     </div>
+    <div class="d-flex mt-3" style="gap: 8px; flex-wrap: wrap;">
+        <a class="{{ $status === 'all' ? 'btn-sharesub bleu' : 'btn btn-light btn-sm' }}" style="width: auto;" href="{{ route('admin.offers.index') }}">All ({{ $counts['all'] }})</a>
+        <a class="{{ $status === 'pending' ? 'btn-sharesub bleu' : 'btn btn-light btn-sm' }}" style="width: auto;" href="{{ route('admin.offers.index', ['status' => 'pending']) }}">Pending review ({{ $counts['pending'] }})</a>
+        <a class="{{ $status === 'active' ? 'btn-sharesub bleu' : 'btn btn-light btn-sm' }}" style="width: auto;" href="{{ route('admin.offers.index', ['status' => 'active']) }}">Active ({{ $counts['active'] }})</a>
+        <a class="{{ $status === 'rejected' ? 'btn-sharesub bleu' : 'btn btn-light btn-sm' }}" style="width: auto;" href="{{ route('admin.offers.index', ['status' => 'rejected']) }}">Rejected ({{ $counts['rejected'] }})</a>
+    </div>
     <div class="progress mt-3" style="height: 10px;">
         <div class="progress-bar bg-green" role="progressbar" style="width: 100%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
     </div>

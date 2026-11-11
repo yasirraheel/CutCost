@@ -2565,9 +2565,12 @@ class CapturedPageController extends Controller
      * the real capture (dashboard mismatch spec, section 1.8): the
      * mobile sheet Connected Bank Account and Contact Sharesub
      * Support links, the tab bar Follow-up link, and the CTA Share
-     * button while the onboarding blocks are shown. The checklist
-     * Complete buttons are left as-is: no target is observable
-     * anywhere. The checklist progress bar aria value is made
+     * button while the onboarding blocks are shown. Each checklist
+     * Complete button goes to the flow its own item names (Join goes
+     * to the catalogue, Share to the wizard, Add a payment method to
+     * the cards page); no mark-complete state exists anywhere, so
+     * navigation is the only behaviour the capture supports. The
+     * checklist progress bar aria value is made
      * self-consistent with its one-third width (33.33, not 0).
      */
     protected function fixDashboardDeadLinks(string $html): string
@@ -2596,6 +2599,22 @@ class CapturedPageController extends Controller
             '<a href="/en/dashboard" class="dash-tabbar-item active">',
             $html,
         );
+
+        // Each checklist Complete button goes to the flow its own
+        // item names: Join to the catalogue, Share to the wizard,
+        // Add a payment method to the cards page.
+        $checklistDestinations = [
+            'Join my first subscription' => '/en/subscriptions',
+            'Share my first subscription' => '/en/create-subscription',
+            'Add a payment method' => '/en/my-cards',
+        ];
+        $html = preg_replace_callback(
+            '/(Join my first subscription|Share my first subscription|Add a payment method)((?:(?!<\/li>).)*?)href="#offline"((?:(?!<\/li>).)*?>Complete<\/a>)/s',
+            static function (array $match) use ($checklistDestinations): string {
+                return $match[1].$match[2].'href="'.$checklistDestinations[$match[1]].'"'.$match[3];
+            },
+            $html,
+        ) ?? $html;
 
         return str_replace(
             'style="width: 33.333333333333%" aria-valuenow="0"',
@@ -4389,7 +4408,10 @@ class CapturedPageController extends Controller
     <a class="btn-sharesub green" href="/en/create-subscription">Share my subscription</a>
 </li>
 HTML;
-        $authenticatedItems = $shareButton.$dashboardMatch[1];
+        $isAdmin = Auth::user()?->isAdmin();
+        $authenticatedItems = $isAdmin
+            ? $this->adminNavigationItems($shareButton, $dashboardMatch[1])
+            : $shareButton.$dashboardMatch[1];
 
         $html = preg_replace_callback(
             '/(<ul class="navbar-nav ml-auto">).*?(<li class="nav-item d-flex">\s*<div class="dropdown lang-dropdown)/s',
@@ -4397,6 +4419,28 @@ HTML;
             $html,
             1,
         ) ?? $html;
+
+        // The mobile slide-out menu has its own links: the public
+        // capture shows Register and Login there, so swapping only
+        // the desktop list would leave them visible to a logged in
+        // user on a small screen. The dashboard capture carries the
+        // logged in mobile item (My account), which is swapped in the
+        // same way; an admin gets the Admin panel item instead.
+        if (preg_match('/<div class="menu-links-items">(.*?)<\/div>\s*<\/div>/s', $dashboard, $mobileMatch)) {
+            $mobileItems = $mobileMatch[1];
+
+            if ($isAdmin) {
+                $mobileItems = str_replace('/en/dashboard.html', '/en/admin', $mobileItems);
+                $mobileItems = str_replace('My account', 'Admin panel', $mobileItems);
+            }
+
+            $html = preg_replace_callback(
+                '/(<div class="menu-links-items">).*?(<\/div>\s*<\/div>)/s',
+                fn (array $current): string => $current[1].$mobileItems.$current[2],
+                $html,
+                1,
+            ) ?? $html;
+        }
 
         if (! str_contains($html, 'id="logout-form"')) {
             $logoutForm = '<form id="logout-form" action="/en/logout" method="POST" style="display:none;">'
@@ -4406,6 +4450,34 @@ HTML;
         }
 
         return $html;
+    }
+
+    /**
+     * Admin header items: the public navigation from the logged in
+     * dashboard capture (Subscriptions, Blog) plus the green Share
+     * button, with the "My account" user menu and the dashboard alert
+     * bell removed and an Admin panel link in their place. An admin
+     * never sees a user panel link in the header.
+     */
+    protected function adminNavigationItems(string $shareButton, string $items): string
+    {
+        $items = preg_replace(
+            '/<li class="nav-item dropdown[^>]*>\s*<a[^>]*id="navbarDropdown"[^>]*>.*?<\/div>\s*<\/li>/s',
+            '',
+            $items,
+        ) ?? $items;
+
+        $items = preg_replace(
+            '/<li class="nav-item">\s*<a href="\/en\/dashboard\.html" class="sharesub-navbar-alert[^"]*"[^>]*>.*?<\/a>\s*<\/li>/s',
+            '',
+            $items,
+        ) ?? $items;
+
+        $adminLink = '<li class="nav-item">'."\n"
+            .'                        <a class="p1-semibold lg:p2-regular" href="/en/admin">Admin panel</a>'."\n"
+            .'                    </li>'."\n";
+
+        return $shareButton.$items.$adminLink;
     }
 
     protected function readPage(string $page): string
