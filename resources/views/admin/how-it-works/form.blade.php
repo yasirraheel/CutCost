@@ -21,7 +21,7 @@
     <div class="col-12 form-group">
         <label for="mockup">Mockup image <span class="text-muted">(jpg, png, webp or svg, max 2 MB; shown in that step's mockup panel)</span></label>
         @if ($step->mockup_image_path)
-            <div class="mb-2"><img src="{{ asset('storage/'.$step->mockup_image_path) }}" alt="" style="max-height: 120px;"></div>
+            <div class="mb-2"><img src="{{ str_starts_with($step->mockup_image_path, '/') || str_starts_with($step->mockup_image_path, 'http') ? asset($step->mockup_image_path) : asset('storage/'.$step->mockup_image_path) }}" alt="" style="max-height: 120px;"></div>
             <div class="mb-2 text-muted text-sm">Current: {{ $step->mockup_image_path }}</div>
         @endif
         <input class="input-sharesub" id="mockup" name="mockup" type="file" accept=".jpg,.jpeg,.png,.webp,.svg">

@@ -5,7 +5,7 @@
         <div class="col-12 col-md-4">
             <label for="total_price">Total price</label>
             @if ($offer->template_id !== null)
-                <div><strong>{{ $offer->currency === 'EUR' ? '€' : '£' }}{{ number_format((float) ($offer->total_price ?? 0), 2) }} / month</strong></div>
+                <div><strong>{{ $currencySymbol }}{{ number_format((float) ($offer->total_price ?? 0), 2) }} / month</strong></div>
                 <div class="text-muted text-sm">Set by your plan.</div>
             @else
                 <input type="number" name="total_price" id="total_price" value="{{ old('total_price', $offer->total_price) }}" step="0.01" min="0.01" class="form-control" required>
@@ -33,19 +33,19 @@
     <ul class="dashboard-profile-steps mt-3">
         <li class="row align-items-center">
             <div class="col">Each member pays</div>
-            <div class="col text-md-right"><strong>{{ $offer->currency === 'EUR' ? '€' : '£' }}{{ number_format($shareMath['eachPays'], 2) }} / month</strong></div>
+            <div class="col text-md-right"><strong>{{ $currencySymbol }}{{ number_format($shareMath['eachPays'], 2) }} / month</strong></div>
         </li>
         <li class="row align-items-center">
             <div class="col">You receive</div>
-            <div class="col text-md-right"><strong>{{ $offer->currency === 'EUR' ? '€' : '£' }}{{ number_format($shareMath['ownerPrice'], 2) }} / month</strong></div>
+            <div class="col text-md-right"><strong>{{ $currencySymbol }}{{ number_format($shareMath['ownerPrice'], 2) }} / month</strong></div>
         </li>
         <li class="row align-items-center">
             <div class="col">Your net cost</div>
-            <div class="col text-md-right"><strong>{{ $offer->currency === 'EUR' ? '€' : '£' }}{{ number_format($shareMath['netCost'], 2) }} / month</strong></div>
+            <div class="col text-md-right"><strong>{{ $currencySymbol }}{{ number_format($shareMath['netCost'], 2) }} / month</strong></div>
         </li>
         <li class="row align-items-center">
             <div class="col">You save per year</div>
-            <div class="col text-md-right"><strong>{{ $offer->currency === 'EUR' ? '€' : '£' }}{{ number_format($shareMath['annualSaving'], 2) }}</strong></div>
+            <div class="col text-md-right"><strong>{{ $currencySymbol }}{{ number_format($shareMath['annualSaving'], 2) }}</strong></div>
         </li>
     </ul>
     <div class="mt-3">

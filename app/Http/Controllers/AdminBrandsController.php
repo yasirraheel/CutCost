@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\RendersAdminShell;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Currency;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -22,10 +23,11 @@ class AdminBrandsController extends Controller
 
     public function create()
     {
-        $brand = new Brand(['currency' => 'GBP', 'currency_symbol' => '£', 'is_featured' => true, 'is_active' => true]);
+        $brand = new Brand(['currency' => Currency::defaultCode(), 'currency_symbol' => Currency::defaultSymbol(), 'is_featured' => true, 'is_active' => true]);
         $categories = Category::orderBy('name')->get();
+        $currencies = Currency::ordered()->get();
 
-        return $this->adminShell(view('admin.brands.create', compact('brand', 'categories'))->render(), 'New brand', '/en/admin/brands');
+        return $this->adminShell(view('admin.brands.create', compact('brand', 'categories', 'currencies'))->render(), 'New brand', '/en/admin/brands');
     }
 
     public function store(Request $request)
@@ -44,8 +46,9 @@ class AdminBrandsController extends Controller
     public function edit(Brand $brand)
     {
         $categories = Category::orderBy('name')->get();
+        $currencies = Currency::ordered()->get();
 
-        return $this->adminShell(view('admin.brands.edit', compact('brand', 'categories'))->render(), 'Edit brand', '/en/admin/brands');
+        return $this->adminShell(view('admin.brands.edit', compact('brand', 'categories', 'currencies'))->render(), 'Edit brand', '/en/admin/brands');
     }
 
     public function update(Request $request, Brand $brand)
@@ -82,7 +85,7 @@ class AdminBrandsController extends Controller
             'slug' => ['required', 'string', 'max:255', Rule::unique('brands', 'slug')->ignore($brand?->id)],
             'price' => ['required', 'numeric', 'min:0'],
             'full_price' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['nullable', 'string', 'size:3'],
+            'currency' => ['nullable', 'string', 'size:3', 'exists:currencies,code'],
             'currency_symbol' => ['nullable', 'string', 'max:5'],
             'discount_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'background' => ['nullable', 'string', 'max:255'],
@@ -100,13 +103,17 @@ class AdminBrandsController extends Controller
     /** @param array<string, mixed> $validated @return array<string, mixed> */
     protected function attributes(Request $request, array $validated): array
     {
+        // Currency symbol stays an editable override, but a blank symbol
+        // is derived from the selected currency row, never hardcoded.
+        $currency = strtoupper($validated['currency'] ?? Currency::defaultCode());
+
         return [
             'name' => $validated['name'],
             'slug' => $validated['slug'],
             'price' => $validated['price'],
             'full_price' => $validated['full_price'] ?? null,
-            'currency' => $validated['currency'] ?? 'GBP',
-            'currency_symbol' => $validated['currency_symbol'] ?? '£',
+            'currency' => $currency,
+            'currency_symbol' => $validated['currency_symbol'] ?: Currency::symbolFor($currency),
             'discount_percent' => $validated['discount_percent'] ?? null,
             'background' => $validated['background'] ?? null,
             'icon_svg' => $validated['icon_svg'] ?? null,

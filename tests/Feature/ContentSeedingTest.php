@@ -102,6 +102,7 @@ class ContentSeedingTest extends TestCase
         'jsonld_rating_count',
         'calculator_avg_yearly_savings',
         'calculator_default_brand_slug',
+        'default_currency_code',
         'dashboard_cta_title',
         'dashboard_checklist_1_title',
         'dashboard_checklist_1_text',
@@ -135,11 +136,11 @@ class ContentSeedingTest extends TestCase
         $this->assertSame(12, PressItem::query()->count());
         $this->assertSame(3, FooterLinkGroup::query()->count());
         $this->assertSame(11, FooterLink::query()->count());
-        $this->assertSame(82, SiteSetting::query()->count());
+        $this->assertSame(83, SiteSetting::query()->count());
 
         $this->assertSame(13, Brand::query()->distinct()->count('slug'));
         $this->assertSame(10, Category::query()->distinct()->count('slug'));
-        $this->assertSame(82, SiteSetting::query()->distinct()->count('key'));
+        $this->assertSame(83, SiteSetting::query()->distinct()->count('key'));
     }
 
     public function test_brands_have_the_exact_homepage_prices(): void

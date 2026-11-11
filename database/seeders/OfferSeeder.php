@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Brand;
+use App\Models\Currency;
 use App\Models\Offer;
 use DOMDocument;
 use DOMXPath;
@@ -16,7 +17,7 @@ use Illuminate\Database\Seeder;
  *
  * The capture lists only seats remaining, never a total seat count, so
  * seats_total stays null. The capture has no per offer currency, so every
- * offer is GBP like the brand itself.
+ * offer takes the brand's currency.
  *
  * The table is seeded only when it is empty, so running this seeder twice
  * never creates duplicates. The Amazon tagline is set from the page meta
@@ -77,7 +78,7 @@ class OfferSeeder extends Seeder
                 'brand_id' => $brand->id,
                 'title' => $title,
                 'price' => (float) $priceText,
-                'currency' => 'GBP',
+                'currency' => $brand->currency ?: Currency::defaultCode(),
                 'seats_total' => null,
                 'seats_available' => $seatsAvailable,
                 'seller_name' => $seller !== '' ? $seller : null,

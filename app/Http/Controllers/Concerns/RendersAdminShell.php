@@ -35,13 +35,51 @@ trait RendersAdminShell
             1,
         ) ?? $html;
         if ($activeUrl !== null) {
-            $html = preg_replace(
-                '/<a class="navi_dash-link" href="'.preg_quote($activeUrl, '/').'">/',
-                '<a class="navi_dash-link active" href="'.e($activeUrl).'">',
+            // The captured dashboard shell marks Dashboard active, so clear
+            // the active marker from every sidebar link first, then mark
+            // only the link for this section. Matching tolerates extra
+            // classes and extra spaces in the class attribute, and href
+            // before or after class, so it works for every sidebar shape.
+            $html = preg_replace_callback(
+                '/<a\b[^>]*\bclass="[^"]*\bnavi_dash-link\b[^"]*"[^>]*>/i',
+                static function (array $match) use ($activeUrl): string {
+                    $tag = $match[0];
+                    $isActive = (bool) preg_match('/\bhref="'.preg_quote($activeUrl, '/').'"/', $tag);
+                    $tag = preg_replace_callback(
+                        '/\bclass="([^"]*)"/',
+                        static function (array $classMatch) use ($isActive): string {
+                            $classes = array_values(array_filter(
+                                explode(' ', $classMatch[1]),
+                                static fn (string $class): bool => $class !== '' && $class !== 'active',
+                            ));
+                            if ($isActive) {
+                                $classes[] = 'active';
+                            }
+
+                            return 'class="'.implode(' ', $classes).'"';
+                        },
+                        $tag,
+                        1,
+                    ) ?? $tag;
+
+                    return $tag;
+                },
                 $html,
-                1,
             ) ?? $html;
         }
+
+        // Hide up and down arrow controls on every admin page: number
+        // input spinners, and the arrow buttons on native scrollbars
+        // (which show on textareas in some browsers). The replacement
+        // scrollbars are thin and button free. Injected here so admin
+        // views keep their own markup untouched. Select dropdown arrows
+        // are not touched, and the textarea resize grip is left alone.
+        $html = preg_replace(
+            '/<\/head>/i',
+            '<style>input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;display:none;margin:0}input[type=number]{-moz-appearance:textfield;appearance:textfield}::-webkit-scrollbar-button{display:none;width:0;height:0}::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,0,0,.25);border-radius:4px}*{scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.25) transparent}</style></head>',
+            $html,
+            1,
+        ) ?? $html;
 
         return response($html)
             ->header('Content-Type', 'text/html; charset=UTF-8')

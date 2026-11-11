@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RendersAdminShell;
+use App\Models\Currency;
 use App\Models\SiteSetting;
 use Illuminate\Http\Request;
 
@@ -75,6 +76,7 @@ class AdminSiteSettingsController extends Controller
             'jsonld_rating_count' => ['label' => 'JSON-LD rating count', 'type' => 'text'],
             'calculator_avg_yearly_savings' => ['label' => 'Calculator average yearly savings', 'type' => 'text'],
             'calculator_default_brand_slug' => ['label' => 'Calculator default brand slug', 'type' => 'text'],
+            'default_currency_code' => ['label' => 'Default currency code', 'type' => 'text'],
             'how_title' => ['label' => 'How it works title', 'type' => 'text'],
             'how_section_title' => ['label' => 'How it works section title', 'type' => 'text'],
             'how_share_label' => ['label' => 'How it works share label', 'type' => 'text'],
@@ -119,6 +121,13 @@ class AdminSiteSettingsController extends Controller
         foreach ($validated['settings'] ?? [] as $key => $value) {
             if (! array_key_exists($key, self::keys())) {
                 continue;
+            }
+
+            // The default currency must name a currency row; anything else
+            // would make every price fallback silently wrong.
+            if ($key === 'default_currency_code' && $value !== null && trim((string) $value) !== ''
+                && Currency::findByCode((string) $value) === null) {
+                return back()->withErrors(['settings.default_currency_code' => 'Default currency code must be a currency in the Currencies list.'])->withInput();
             }
 
             SiteSetting::updateOrCreate(['key' => $key], ['value' => $value]);
