@@ -136,6 +136,11 @@ class AdminPanelController extends Controller
             <div class="col">Manage admin settings<div class="text-muted text-sm">Update the signed-in administrator account</div></div>
             <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right"><a class="btn btn-light btn-sm" href="/en/admin/settings">Open</a></div>
         </li>
+        <li class="row align-items-center">
+            <div class="col-1 text-right">👤</div>
+            <div class="col">Manage users<div class="text-muted text-sm">View, edit, promote or remove user accounts</div></div>
+            <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right"><a class="btn btn-light btn-sm" href="/en/admin/users">Open</a></div>
+        </li>
     </ul>
 </div>
 HTML;

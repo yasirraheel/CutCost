@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminPanelController;
 use App\Http\Controllers\CapturedPageController;
 use App\Http\Controllers\CmsPageController;
+use App\Http\Controllers\AdminUsersController;
 use App\Http\Controllers\KycController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -68,6 +69,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('en/admin')->group(function ()
         ->name('admin.dashboard');
     Route::get('/account/identity', [AdminPanelController::class, 'identity'])
         ->name('admin.account.identity');
+    Route::get('/users', [AdminUsersController::class, 'index'])->name('admin.users');
+    Route::get('/users/{user}/edit', [AdminUsersController::class, 'edit'])->name('admin.users.edit');
+    Route::put('/users/{user}', [AdminUsersController::class, 'update'])->name('admin.users.update');
+    Route::delete('/users/{user}', [AdminUsersController::class, 'destroy'])->name('admin.users.destroy');
     Route::get('/kyc', [KycController::class, 'adminIndex'])->name('admin.kyc');
     Route::post('/kyc/{submission}/approve', [KycController::class, 'approve'])->name('admin.kyc.approve');
     Route::post('/kyc/{submission}/reject', [KycController::class, 'reject'])->name('admin.kyc.reject');
