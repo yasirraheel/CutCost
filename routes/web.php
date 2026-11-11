@@ -1,10 +1,20 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AdminBrandsController;
+use App\Http\Controllers\AdminCategoriesController;
+use App\Http\Controllers\AdminFaqsController;
+use App\Http\Controllers\AdminFeaturesController;
+use App\Http\Controllers\AdminFooterLinkGroupsController;
+use App\Http\Controllers\AdminFooterLinksController;
+use App\Http\Controllers\AdminHowItWorksStepsController;
 use App\Http\Controllers\AdminPanelController;
+use App\Http\Controllers\AdminPressItemsController;
+use App\Http\Controllers\AdminSiteSettingsController;
+use App\Http\Controllers\AdminTestimonialsController;
+use App\Http\Controllers\AdminUsersController;
 use App\Http\Controllers\CapturedPageController;
 use App\Http\Controllers\CmsPageController;
-use App\Http\Controllers\AdminUsersController;
 use App\Http\Controllers\KycController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +32,7 @@ Route::get('/en/subscriptions/house', [CapturedPageController::class, 'show'])
     ->defaults('page', 'en/subscriptions/house.html');
 Route::get('/en/brand/amazon', [CapturedPageController::class, 'show'])
     ->defaults('page', 'en/brand/amazon.html');
+Route::get('/en/brand/{slug}', [CapturedPageController::class, 'showBrand'])->where('slug', '[A-Za-z0-9][A-Za-z0-9-]*');
 Route::get('/en/subscriptions.html', fn () => redirect('/en/subscriptions', 301));
 Route::get('/en/subscriptions/house.html', fn () => redirect('/en/subscriptions/house', 301));
 Route::get('/en/brand/amazon.html', fn () => redirect('/en/brand/amazon', 301));
@@ -77,6 +88,22 @@ Route::middleware(['auth', 'role:admin'])->prefix('en/admin')->group(function ()
     Route::post('/kyc/{submission}/approve', [KycController::class, 'approve'])->name('admin.kyc.approve');
     Route::post('/kyc/{submission}/reject', [KycController::class, 'reject'])->name('admin.kyc.reject');
     Route::get('/kyc/{submission}/document/{side}', [KycController::class, 'download'])->name('admin.kyc.download');
+    Route::resource('brands', AdminBrandsController::class)->names('admin.brands')->parameters(['brands' => 'brand'])->except('show');
+    Route::resource('categories', AdminCategoriesController::class)->names('admin.categories')->parameters(['categories' => 'category'])->except('show');
+    Route::get('/content/settings', [AdminSiteSettingsController::class, 'edit'])->name('admin.settings.edit');
+    Route::put('/content/settings', [AdminSiteSettingsController::class, 'update'])->name('admin.settings.update');
+    Route::resource('how-it-works', AdminHowItWorksStepsController::class)->names('admin.how-it-works')->parameters(['how-it-works' => 'step'])->except('show');
+    Route::resource('faqs', AdminFaqsController::class)->names('admin.faqs')->parameters(['faqs' => 'faq'])->except('show');
+    Route::resource('testimonials', AdminTestimonialsController::class)->names('admin.testimonials')->parameters(['testimonials' => 'testimonial'])->except('show');
+    Route::resource('press', AdminPressItemsController::class)->names('admin.press')->parameters(['press' => 'pressItem'])->except('show');
+    Route::resource('footer-groups', AdminFooterLinkGroupsController::class)->names('admin.footer-groups')->parameters(['footer-groups' => 'group']);
+    Route::get('/footer-groups/{group}/links', [AdminFooterLinksController::class, 'index'])->name('admin.footer-links.index');
+    Route::get('/footer-groups/{group}/links/create', [AdminFooterLinksController::class, 'create'])->name('admin.footer-links.create');
+    Route::post('/footer-groups/{group}/links', [AdminFooterLinksController::class, 'store'])->name('admin.footer-links.store');
+    Route::get('/footer-groups/{group}/links/{link}/edit', [AdminFooterLinksController::class, 'edit'])->name('admin.footer-links.edit');
+    Route::put('/footer-groups/{group}/links/{link}', [AdminFooterLinksController::class, 'update'])->name('admin.footer-links.update');
+    Route::delete('/footer-groups/{group}/links/{link}', [AdminFooterLinksController::class, 'destroy'])->name('admin.footer-links.destroy');
+    Route::resource('features', AdminFeaturesController::class)->names('admin.features')->parameters(['features' => 'feature'])->except('show');
     Route::get('/{section}', [AdminPanelController::class, 'show'])
         ->where('section', 'dashboard|shared-subscriptions|joined-subscriptions|waiting-list|wallet|cards|account|settings|chat');
 });

@@ -1,0 +1,26 @@
+<section class="card-sharesub p-4">
+    <h3 class="dashboard-progress-title">Site settings</h3>
+    @if (session('status'))
+        <div class="alert alert-success" role="status">{{ session('status') }}</div>
+    @endif
+    @if ($errors->any())
+        <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
+    @endif
+    <form method="POST" action="{{ route('admin.settings.update') }}">
+        @csrf
+        @method('PUT')
+        <div class="row">
+            @foreach ($keys as $key => $meta)
+                <div class="col-12 form-group">
+                    <label for="settings-{{ $key }}">{{ $meta['label'] }} <span class="text-muted">({{ $key }})</span></label>
+                    @if ($meta['type'] === 'textarea')
+                        <textarea class="input-sharesub" id="settings-{{ $key }}" name="settings[{{ $key }}]" rows="3">{{ old('settings.'.$key, $settings[$key] ?? '') }}</textarea>
+                    @else
+                        <input class="input-sharesub" id="settings-{{ $key }}" name="settings[{{ $key }}]" value="{{ old('settings.'.$key, $settings[$key] ?? '') }}">
+                    @endif
+                </div>
+            @endforeach
+        </div>
+        <button type="submit" class="btn-sharesub bleu mx-auto my-2 d-block">Save settings</button>
+    </form>
+</section>
