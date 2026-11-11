@@ -8,6 +8,7 @@ use App\Models\OfferMember;
 use App\Models\OfferPayment;
 use App\Models\Template;
 use App\Models\User;
+use App\Models\WalletBalance;
 use Database\Seeders\RawPages2DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
@@ -98,10 +99,96 @@ class RawPages2DashboardSharedTest extends TestCase
         // the subvalue is the total earnings "from the beginning".
         $this->assertStringContainsString('<span class="stat-value">£2.88</span>', $content);
         $this->assertStringContainsString('<span class="stat-subvalue">£2.88 from the beginning</span>', $content);
-        // Refund coming this month: one line per currency row, GBP only
-        // in the demo (no EUR rows exist, so no EUR line is invented).
-        $this->assertStringContainsString('<span class="stat-value text-green">£2.88</span>', $content);
+        // Refund coming this month is the available balance becoming
+        // available this month, NOT the pending amount: the demo
+        // available balance falls due on 9 December, so in November
+        // the refund is a zero GBP line while savings stay non-zero,
+        // matching the real capture's pattern.
+        $this->assertStringContainsString('<span class="stat-value text-green">£0</span>', $content);
         $this->assertStringNotContainsString('€2.88', $content);
+    }
+
+    public function test_dashboard_hides_cta_and_checklist_for_user_with_active_offer(): void
+    {
+        $content = $this->actingAs($this->demo)->get('/en/dashboard')
+            ->assertOk()->getContent();
+
+        // The real capture has no onboarding markup at all, so the
+        // blocks are removed, not hidden.
+        $this->assertStringNotContainsString('Where would you like', $content);
+        $this->assertStringNotContainsString('Finalize your profile', $content);
+        $this->assertStringNotContainsString('share-section dashboard', $content);
+        $this->assertStringNotContainsString('dashboard-profile-steps', $content);
+        // Income and expenses is first, Payments below it.
+        $this->assertLessThan(
+            strpos($content, 'Payments</h3>'),
+            strpos($content, 'Income &amp; expenses</h3>') ?: strpos($content, 'Income & expenses</h3>'),
+        );
+    }
+
+    public function test_dashboard_shows_cta_and_checklist_for_fresh_user_with_no_active_offer(): void
+    {
+        $fresh = User::factory()->create(['role' => 'user', 'first_name' => 'Fresh']);
+
+        $content = $this->actingAs($fresh)->get('/en/dashboard')
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('Where would you like', $content);
+        $this->assertStringContainsString('Finalize your profile', $content);
+        $this->assertStringContainsString('dashboard-profile-steps', $content);
+        // CTA Share button points at the wizard, not #offline.
+        $this->assertStringContainsString('<a href="/en/create-subscription" class="btn-sharesub dark big">Share</a>', $content);
+        // Stats keep the captured zeros for a fresh user.
+        $this->assertStringContainsString('<span class="stat-value">€0</span>', $content);
+    }
+
+    public function test_dashboard_refund_two_line_join_when_two_available_rows_fall_due_this_month(): void
+    {
+        // Move the demo GBP available balance due into this month and
+        // add a EUR available balance due this month: the refund must
+        // render two lines, account currency first, EUR second.
+        WalletBalance::where('user_id', $this->demo->id)
+            ->where('metric', WalletBalance::METRIC_AVAILABLE)
+            ->update(['available_on' => now()->startOfMonth()->addDays(8)->toDateString()]);
+        WalletBalance::create([
+            'user_id' => $this->demo->id,
+            'metric' => WalletBalance::METRIC_AVAILABLE,
+            'currency' => 'EUR',
+            'amount' => 1.25,
+            'available_on' => now()->startOfMonth()->addDays(8)->toDateString(),
+        ]);
+
+        $content = $this->actingAs($this->demo)->get('/en/dashboard')
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('<span class="stat-value text-green">£2.88</span>', $content);
+        $this->assertStringContainsString('<span class="stat-value text-green">€1.25</span>', $content);
+        $this->assertMatchesRegularExpression(
+            '/<span class="stat-value text-green">£2\.88<\/span>\s*<br>\s*<span class="stat-value text-green">€1\.25<\/span>/',
+            $content,
+        );
+    }
+
+    public function test_dashboard_coming_soon_lists_pending_next_month_offer_payments(): void
+    {
+        $content = $this->actingAs($this->demo)->get('/en/dashboard')
+            ->assertOk()->getContent();
+
+        $nextMonth = now()->startOfMonth()->addMonth()->format('Y/m/d');
+        $this->assertStringContainsString('demo-member-a - '.$nextMonth.' - £0.96', $content);
+        $this->assertStringContainsString('demo-member-b - '.$nextMonth.' - £0.96', $content);
+        $this->assertStringContainsString('demo-member-c - '.$nextMonth.' - £0.96', $content);
+        $this->assertStringNotContainsString('Savings in sight', $content);
+    }
+
+    public function test_dashboard_dead_links_point_at_real_urls(): void
+    {
+        $content = $this->actingAs($this->demo)->get('/en/dashboard')
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('<a href="/en/my-bank-account" class="dash-sheet-link "', $content);
+        $this->assertStringContainsString('href="https://help.sharesub.com/"', $content);
+        $this->assertStringContainsString('<a href="/en/dashboard" class="dash-tabbar-item active">', $content);
     }
 
     public function test_dashboard_payments_this_month_lists_this_month_payout(): void
@@ -111,9 +198,11 @@ class RawPages2DashboardSharedTest extends TestCase
 
         $this->assertStringContainsString('Transfer made - '.now()->format('Y/m').'/09 - £2.88', $content);
         $this->assertStringNotContainsString("You've spent nothing", $content);
-        // Coming soon has no scheduled payment source yet, so the
-        // captured empty state stays.
-        $this->assertStringContainsString('Savings in sight', $content);
+        // Coming soon now renders the pending next-month payments,
+        // so the captured empty state is replaced for the demo user.
+        $nextMonth = now()->startOfMonth()->addMonth()->format('Y/m/d');
+        $this->assertStringContainsString('demo-member-a - '.$nextMonth.' - £0.96', $content);
+        $this->assertStringNotContainsString('Savings in sight', $content);
     }
 
     public function test_dashboard_without_wallet_rows_keeps_captured_zeros(): void
@@ -271,7 +360,9 @@ class RawPages2DashboardSharedTest extends TestCase
 
     public function test_detail_payments_tab_pager_and_total(): void
     {
-        $this->assertSame(3, OfferPayment::count());
+        // 3 paid rows for the current month plus 3 pending rows for
+        // next month (the dashboard Coming soon source).
+        $this->assertSame(6, OfferPayment::count());
 
         $content = $this->actingAs($this->demo)->get('/en/my-shared-subscriptions/'.$this->offer->id)
             ->assertOk()->getContent();
@@ -389,7 +480,9 @@ class RawPages2DashboardSharedTest extends TestCase
 
         // Current month only: the members joined this month, so earlier
         // months get no rows.
-        $this->assertSame(3, OfferPayment::count());
+        // 3 paid rows for the current month plus 3 pending rows for
+        // next month (the dashboard Coming soon source).
+        $this->assertSame(6, OfferPayment::count());
         $payment = OfferPayment::first();
         $this->assertSame('paid', $payment->status);
         $this->assertSame('0.96', $payment->amount);

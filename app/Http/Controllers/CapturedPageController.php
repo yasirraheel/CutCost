@@ -2478,6 +2478,8 @@ class CapturedPageController extends Controller
     protected function applyDashboardCopy(string $html, string $page): string
     {
         if ($page === 'en/dashboard.html') {
+            $html = $this->hideDashboardOnboarding($html);
+            $html = $this->fixDashboardDeadLinks($html);
             $html = $this->replaceDashboardCta($html);
             $html = $this->replaceDashboardChecklist($html);
             $html = $this->replaceDashboardProposeLink($html);
@@ -2503,6 +2505,103 @@ class CapturedPageController extends Controller
         }
 
         return $html;
+    }
+
+    /**
+     * Hide the dashboard onboarding blocks for an established user.
+     *
+     * ASSUMPTION (dashboard mismatch spec, section 2.4): the real
+     * capture contains no CTA block and no profile checklist at all,
+     * but it does not pin down the trigger, so the blocks are removed
+     * from the rendered HTML when the user has at least one active
+     * shared offer (offers.status = active, not draft or terminated).
+     * That directly fixes the reported screenshot, matches the
+     * checklist wording, and needs no new data. The blocks are
+     * REMOVED, not CSS-hidden, because the real capture has no such
+     * markup. A user with no active offer keeps both blocks.
+     */
+    protected function hideDashboardOnboarding(string $html): string
+    {
+        if (! $this->hasActiveSharedOffer()) {
+            return $html;
+        }
+
+        $html = preg_replace(
+            '/<div class="share-section dashboard mb-4 p-4">.*?(?=<div class="dashboard-progress mb-3 p-4">)/s',
+            '',
+            $html,
+            1,
+        ) ?? $html;
+
+        return preg_replace(
+            '/<div class="dashboard-progress mb-3 p-4">.*?(?=<div class="dashboard-progress dashboard-revenues-expenses)/s',
+            '',
+            $html,
+            1,
+        ) ?? $html;
+    }
+
+    protected function hasActiveSharedOffer(): bool
+    {
+        if (! Auth::check()) {
+            return false;
+        }
+
+        try {
+            if (! class_exists(Offer::class) || ! Schema::hasTable('offers')) {
+                return false;
+            }
+
+            return Offer::where('user_id', Auth::id())
+                ->where('status', 'active')
+                ->exists();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Point the dashboard dead links at the real destinations from
+     * the real capture (dashboard mismatch spec, section 1.8): the
+     * mobile sheet Connected Bank Account and Contact Sharesub
+     * Support links, the tab bar Follow-up link, and the CTA Share
+     * button while the onboarding blocks are shown. The checklist
+     * Complete buttons are left as-is: no target is observable
+     * anywhere. The checklist progress bar aria value is made
+     * self-consistent with its one-third width (33.33, not 0).
+     */
+    protected function fixDashboardDeadLinks(string $html): string
+    {
+        $html = str_replace(
+            '<a href="#offline" class="btn-sharesub dark big">Share</a>',
+            '<a href="/en/create-subscription" class="btn-sharesub dark big">Share</a>',
+            $html,
+        );
+
+        $html = preg_replace(
+            '/(<a href=")#offline(" class="dash-sheet-link ">\s*<svg.*?<\/svg>\s*<span>Connected Bank Account<\/span>)/s',
+            '$1/en/my-bank-account$2',
+            $html,
+            1,
+        ) ?? $html;
+
+        $html = str_replace(
+            '<a href="#offline" target="_blank" rel="noopener" class="dash-sheet-link" data-open-support>',
+            '<a href="https://help.sharesub.com/" target="_blank" rel="noopener" class="dash-sheet-link" data-open-support>',
+            $html,
+        );
+
+        $html = str_replace(
+            '<a href="#offline" class="dash-tabbar-item active">',
+            '<a href="/en/dashboard" class="dash-tabbar-item active">',
+            $html,
+        );
+
+        return str_replace(
+            'style="width: 33.333333333333%" aria-valuenow="0"',
+            'style="width: 33.333333333333%" aria-valuenow="33.333333333333"',
+            $html,
+        );
     }
 
     protected function replaceDashboardCta(string $html): string
@@ -2669,15 +2768,26 @@ class CapturedPageController extends Controller
      * Fill the dashboard Income and expenses card from the wallet
      * balances (Raw Pages 2, spec D3/D4). Monthly Savings is the pending
      * monthly income, with the total earnings as the "from the
-     * beginning" subvalue; the refund is the same pending amount.
-     * One line per currency, account currency first, then EUR, then the
-     * rest, matching the real page's two-line refund block. A currency
-     * with no wallet row renders no line: figures are never converted
-     * and no rate is invented, so a missing EUR line is a recorded gap
-     * (G-D2), not a zero. Monthly expenses have no data source yet, so
-     * that stat is left exactly as captured (gap G-D2). The CTA block
-     * and profile checklist are likewise left alone: the trigger that
-     * hides them on an established account is unknown (gap G-D1).
+     * beginning" subvalue. The refund is NOT the pending amount: the
+     * real capture shows non-zero Monthly Savings with a zero refund,
+     * so the refund cannot be the same balance.
+     *
+     * ASSUMPTION: the refund is the available balance becoming
+     * available this month. WalletController labels the available
+     * metric "Available for transfer on %s" from its available_on
+     * date, and the wallet policy says available funds are
+     * automatically transferred on the 9th of each month, so the
+     * amount whose available_on falls in the current month is the
+     * money coming to the user this month. When no available balance
+     * falls due this month, each available currency renders a zero
+     * line, never a converted figure. One line per currency,
+     * account currency first, then EUR, then the rest, matching the
+     * real page's two-line refund block. A currency with no wallet
+     * row renders no line: figures are never converted and no rate
+     * is invented, so a missing EUR line is a recorded gap (G-D2),
+     * not a zero. Monthly expenses have no data source yet, so that
+     * stat is left exactly as captured (gap G-D2). My monthly
+     * expenses still need a joined-subscription spend source.
      */
     protected function renderDashboardStats(string $html): string
     {
@@ -2708,6 +2818,8 @@ class CapturedPageController extends Controller
             ->sortBy($order)->values();
         $earned = $balances->where('metric', WalletBalance::METRIC_TOTAL_EARNINGS)
             ->sortBy($order)->values();
+        $available = $balances->where('metric', WalletBalance::METRIC_AVAILABLE)
+            ->sortBy($order)->values();
 
         if ($pending->isEmpty()) {
             return $html;
@@ -2719,7 +2831,25 @@ class CapturedPageController extends Controller
         );
 
         $plainLines = $pending->map($amountLine)->all();
-        $greenLines = $pending->map($amountLine)->all();
+
+        // Refund coming this month: available balances whose
+        // available_on falls in the current month. If none fall due
+        // this month, each available currency renders a zero line.
+        $refundDue = $available->filter(function (mixed $row): bool {
+            $due = $row->available_on;
+
+            return $due !== null
+                && $due->greaterThanOrEqualTo(now()->startOfMonth())
+                && $due->lessThanOrEqualTo(now()->endOfMonth());
+        })->values();
+        $greenLines = $refundDue->isNotEmpty()
+            ? $refundDue->map($amountLine)->all()
+            : $available->map(
+                fn (mixed $row): string => $this->formatPriceAmount(
+                    0,
+                    Currency::symbolFor($row->currency ?? null) ?? (string) ($row->currency ?? ''),
+                ),
+            )->all();
 
         $html = preg_replace_callback(
             '/(<span class="stat-value">)[^<]*(<\/span>\s*<span class="stat-label text-muted">Monthly Savings<\/span>)/',
@@ -2743,25 +2873,32 @@ class CapturedPageController extends Controller
             ) ?? $html;
         }
 
-        $html = preg_replace_callback(
-            '/(<span class="stat-value text-green">)[^<]*(<\/span>\s*<span class="stat-label text-green">Refund coming this month<\/span>)/',
-            static fn (array $matches): string => $matches[1]
-                .implode('</span>'."\n".'<br>'."\n".'<span class="stat-value text-green">', $greenLines)
-                .$matches[2],
-            $html,
-            1,
-        ) ?? $html;
+        // No available row at all: leave the captured refund value
+        // rather than rendering an empty span.
+        if ($greenLines !== []) {
+            $html = preg_replace_callback(
+                '/(<span class="stat-value text-green">)[^<]*(<\/span>\s*<span class="stat-label text-green">Refund coming this month<\/span>)/',
+                static fn (array $matches): string => $matches[1]
+                    .implode('</span>'."\n".'<br>'."\n".'<span class="stat-value text-green">', $greenLines)
+                    .$matches[2],
+                $html,
+                1,
+            ) ?? $html;
+        }
 
         return $html;
     }
 
     /**
-     * Fill the dashboard Payments card "This month" list from the
-     * user's payouts paid this month (Raw Pages 2, spec D5). When there
-     * is no payout this month the captured empty state stays. The
-     * "Coming soon" list has no data source yet (no scheduled payment
-     * rows exist), so it is left exactly as captured (gap G-D3), as is
-     * the markup of a non-empty row, which no capture shows.
+     * Fill the dashboard Payments card from the user's payouts and
+     * scheduled payments (Raw Pages 2, spec D5). "This month" lists
+     * payouts paid this month; when there is none the captured empty
+     * state stays. "Coming soon" lists the pending offer_payments
+     * for next month, one row per current co-subscriber, in the same
+     * row format as "This month"; when there is none the captured
+     * empty state stays. The markup of a non-empty row is unproven:
+     * no capture shows one (gap G-D3), so this reuses the existing
+     * "This month" row shape and says so.
      */
     protected function renderDashboardPayments(string $html): string
     {
@@ -2778,30 +2915,66 @@ class CapturedPageController extends Controller
                 ->whereBetween('paid_at', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
                 ->orderBy('paid_at')
                 ->get();
+
+            $comingSoon = collect();
+            if (class_exists(OfferPayment::class) && Schema::hasTable('offer_payments')) {
+                $offerIds = Offer::where('user_id', Auth::id())->pluck('id');
+
+                if ($offerIds->isNotEmpty()) {
+                    $comingSoon = OfferPayment::with('member')
+                        ->whereIn('offer_id', $offerIds)
+                        ->where('status', OfferPayment::STATUS_PENDING)
+                        ->whereDate('month', now()->startOfMonth()->addMonth()->toDateString())
+                        ->orderBy('member_id')
+                        ->get();
+                }
+            }
         } catch (\Throwable) {
             return $html;
         }
 
-        if ($payouts->isEmpty()) {
-            return $html;
+        if ($payouts->isNotEmpty()) {
+            $rows = $payouts->map(function (mixed $payout): string {
+                $amount = $this->formatPriceAmount(
+                    (float) ($payout->amount ?? 0),
+                    Currency::symbolFor($payout->currency ?? null) ?? (string) ($payout->currency ?? ''),
+                );
+                $date = $payout->paid_at !== null ? $payout->paid_at->format('Y/m/d') : '';
+
+                return '<li>'.e((string) ($payout->label ?: 'Transfer made')).' - '.$date.' - '.$amount.'</li>';
+            })->implode("\n");
+
+            $html = preg_replace_callback(
+                '/(<div class="dashboard-payments-past">\s*<h4>This month<\/h4>\s*<ul>).*?(<\/ul>)/s',
+                static fn (array $matches): string => $matches[1]."\n".$rows."\n".$matches[2],
+                $html,
+                1,
+            ) ?? $html;
         }
 
-        $rows = $payouts->map(function (mixed $payout): string {
-            $amount = $this->formatPriceAmount(
-                (float) ($payout->amount ?? 0),
-                Currency::symbolFor($payout->currency ?? null) ?? (string) ($payout->currency ?? ''),
-            );
-            $date = $payout->paid_at !== null ? $payout->paid_at->format('Y/m/d') : '';
+        if ($comingSoon->isNotEmpty()) {
+            $rows = $comingSoon->map(function (mixed $payment): string {
+                $amount = $this->formatPriceAmount(
+                    (float) ($payment->amount ?? 0),
+                    Currency::symbolFor($payment->currency ?? null) ?? (string) ($payment->currency ?? ''),
+                );
+                $date = $payment->month !== null ? $payment->month->format('Y/m/d') : '';
+                $label = $payment->member !== null && (string) ($payment->member->username ?? '') !== ''
+                    ? (string) $payment->member->username
+                    : 'Payment due';
 
-            return '<li>'.e((string) ($payout->label ?: 'Transfer made')).' - '.$date.' - '.$amount.'</li>';
-        })->implode("\n");
+                return '<li>'.e($label).' - '.$date.' - '.$amount.'</li>';
+            })->implode("\n");
 
-        return preg_replace_callback(
-            '/(<div class="dashboard-payments-past">\s*<h4>This month<\/h4>\s*<ul>).*?(<\/ul>)/s',
-            static fn (array $matches): string => $matches[1]."\n".$rows."\n".$matches[2],
-            $html,
-            1,
-        ) ?? $html;
+            $html = preg_replace_callback(
+                '/(<div class="dashboard-payments-upcoming">\s*<h4>Coming soon<\/h4>\s*<ul>).*?(<\/ul>)/s',
+                static fn (array $matches): string => $matches[1]."\n".$rows."\n".$matches[2],
+                $html,
+                1,
+            ) ?? $html;
+        }
+
+        return $html;
     }
 
     /**

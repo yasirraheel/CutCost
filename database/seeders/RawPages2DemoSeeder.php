@@ -50,6 +50,9 @@ use Illuminate\Support\Collection;
  *   payouts = one row per month for the latest three months, each on
  *   the 9th, each amount B, label 'Transfer made'
  *
+ *   coming soon = offer_payments for next month, status pending, one
+ *   row per current co-subscriber, amount = offer.price
+ *
  * Members are seeded only for the demo user's active offers. The
  * admin user has no offers, so the admin gets only the card and bank
  * rows (which need no offer), not members, wallet balances or
@@ -143,6 +146,9 @@ class RawPages2DemoSeeder extends Seeder
      * offer's per-subscriber price in the offer's own currency, marked
      * paid on the 9th of the month, the same day the payout policy
      * transfers funds. Months before a member joined get no row.
+     * Plus one pending row per current co-subscriber for next month,
+     * with no paid date: the dashboard "Coming soon" source, a
+     * scheduled payment not yet paid.
      */
     private function seedOfferPayments(Offer $offer): void
     {
@@ -188,6 +194,34 @@ class RawPages2DemoSeeder extends Seeder
                 } else {
                     $row->update($values);
                 }
+            }
+        }
+
+        // Next month: one pending row per current co-subscriber, the
+        // "Coming soon" source. Same amount and currency as the paid
+        // rows, status pending, no paid date yet. Uses the same
+        // whereDate lookup so re-running creates zero duplicates.
+        $nextMonth = now()->startOfMonth()->addMonth();
+        foreach ($members as $member) {
+            $row = OfferPayment::query()
+                ->where('offer_id', $offer->id)
+                ->where('member_id', $member->id)
+                ->whereDate('month', $nextMonth->toDateString())
+                ->first();
+            $values = [
+                'status' => OfferPayment::STATUS_PENDING,
+                'paid_at' => null,
+                'amount' => round((float) ($offer->price ?? 0), 2),
+                'currency' => $offer->currency ?: 'GBP',
+            ];
+            if ($row === null) {
+                OfferPayment::query()->create(array_merge([
+                    'offer_id' => $offer->id,
+                    'member_id' => $member->id,
+                    'month' => $nextMonth->toDateString(),
+                ], $values));
+            } else {
+                $row->update($values);
             }
         }
     }
