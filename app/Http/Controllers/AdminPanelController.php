@@ -89,9 +89,112 @@ class AdminPanelController extends Controller
     </a>
 </li>
 HTML;
+        $moduleNavigation = <<<'HTML'
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/brands">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M4 4h12l10 10-12 12L4 16V4z" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Brands</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/categories">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="4" y="4" width="9" height="9" rx="1" />
+                <rect x="17" y="4" width="9" height="9" rx="1" />
+                <rect x="4" y="17" width="9" height="9" rx="1" />
+                <rect x="17" y="17" width="9" height="9" rx="1" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Categories</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/content/settings">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="4" y="7" width="22" height="2" />
+                <rect x="4" y="14" width="22" height="2" />
+                <rect x="4" y="21" width="22" height="2" />
+                <circle cx="10" cy="8" r="3" />
+                <circle cx="20" cy="15" r="3" />
+                <circle cx="12" cy="22" r="3" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Site Settings</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/how-it-works">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="4" y="20" width="7" height="6" />
+                <rect x="11" y="14" width="7" height="12" />
+                <rect x="18" y="8" width="8" height="18" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">How It Works</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/faqs">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path fill-rule="evenodd" d="M6 4h18v22H6V4zm4 6v2h10v-2H10v-2zm0 5v2h10v-2H10v-2zm0 5v2h6v-2h-6v-2z" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">FAQs</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/testimonials">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M6 6h8v8c0 4-2 6-5 7l-1-2c1.5-.5 2.5-1.5 2.5-3H6V6zm12 0h8v8c0 4-2 6-5 7l-1-2c1.5-.5 2.5-1.5 2.5-3h-4.5V6z" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Testimonials</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/press">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path fill-rule="evenodd" d="M4 5h22v20H4V5zm4 4v2h14V9H8zm0 5v2h14v-2H8zm0 5v2h8v-2H8z" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Press</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/footer-groups">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="3" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="10" cy="15" r="6" />
+                <circle cx="20" cy="15" r="6" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Footer Links</span>
+    </a>
+</li>
+<li class="navi_dash-item ">
+    <a class="navi_dash-link" href="/en/admin/features">
+        <span class="navi_dash-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M15 4l3.2 6.9 7.3.8-5.5 5 1.5 7.3L15 20.4 8.5 24 10 16.7 4.5 11.7l7.3-.8L15 4z" />
+            </svg>
+        </span>
+        <span class="navi_dash-text">Features</span>
+    </a>
+</li>
+HTML;
         $html = preg_replace(
             '/(<li class="navi_dash-item ">\s*<a class="navi_dash-link  " href="\/en\/admin\/account">)/i',
-            $usersNavigation.'$1',
+            $usersNavigation.$moduleNavigation.'$1',
             $html,
             1,
         ) ?? $html;
