@@ -5,7 +5,14 @@
     </div>
     <div class="col-12 form-group">
         <label for="answer">Answer</label>
-        <textarea class="input-sharesub" id="answer" name="answer" rows="4" required>{{ old('answer', $faq->answer) }}</textarea>
+        @php
+            $textareaRows = 0;
+            foreach (preg_split('/\r\n|\r|\n/', (string) (old('answer', $faq->answer))) ?: [] as $textareaLine) {
+                $textareaRows += max(1, (int) ceil(mb_strlen($textareaLine) / 80));
+            }
+            $textareaRows = min(24, max(6, $textareaRows + 1));
+        @endphp
+        <textarea style="height: auto;" class="input-sharesub" id="answer" name="answer" rows="{{ $textareaRows }}" required>{{ old('answer', $faq->answer) }}</textarea>
     </div>
     <div class="col-12 col-md-6 form-group">
         <label for="sort_order">Sort order</label>

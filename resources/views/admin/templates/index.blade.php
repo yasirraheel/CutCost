@@ -15,7 +15,7 @@
     <ul class="dashboard-profile-steps mt-3">
         @forelse ($templates as $template)
             <li class="row align-items-center">
-                <div class="col-1 text-right">📦</div>
+                <div class="col-1 text-right">@include('admin.partials.brand-icon', ['brand' => $template->brand, 'fallback' => '📦'])</div>
                 <div class="col">
                     <strong>{{ $template->name }}</strong>
                     <div class="text-muted text-sm">{{ $template->currency }} {{ number_format($template->price_with_fees, 2) }} · {{ $template->brand?->name ?? 'No brand' }} · {{ $template->slug }} · {{ $template->is_active ? 'Active' : 'Inactive' }}</div>

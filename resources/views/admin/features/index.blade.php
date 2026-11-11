@@ -15,9 +15,9 @@
     <ul class="dashboard-profile-steps mt-3">
         @forelse ($features as $feature)
             <li class="row align-items-center">
-                <div class="col-1 text-right">⭐</div>
+                <div class="col-1 text-right">@if ($feature->icon_path)<img src="{{ str_starts_with($feature->icon_path, '/') || str_starts_with($feature->icon_path, 'http') ? asset($feature->icon_path) : asset('storage/'.$feature->icon_path) }}" alt="" style="max-height: 40px; max-width: 60px; vertical-align: middle;">@else⭐@endif</div>
                 <div class="col">
-                    @if ($feature->icon_path)<img src="{{ str_starts_with($feature->icon_path, '/') || str_starts_with($feature->icon_path, 'http') ? asset($feature->icon_path) : asset('storage/'.$feature->icon_path) }}" alt="" style="max-height: 40px; max-width: 60px; margin-right: 8px; vertical-align: middle;">@endif<strong>{{ $feature->title }}</strong>
+                    <strong>{{ $feature->title }}</strong>
                     <div class="text-muted text-sm">{{ Str::limit($feature->text, 80) }} · Order {{ $feature->sort_order }} · {{ $feature->is_active ? 'Active' : 'Inactive' }}</div>
                 </div>
                 <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right">

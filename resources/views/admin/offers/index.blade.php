@@ -15,7 +15,7 @@
     <ul class="dashboard-profile-steps mt-3">
         @forelse ($offers as $offer)
             <li class="row align-items-center">
-                <div class="col-1 text-right">🎟️</div>
+                <div class="col-1 text-right">@include('admin.partials.brand-icon', ['brand' => $offer->brand, 'fallback' => '🎟️'])</div>
                 <div class="col">
                     <strong>{{ $offer->title }}</strong>
                     <div class="text-muted text-sm">{{ $offer->currency }} {{ number_format($offer->price, 2) }} · {{ $offer->brand?->name ?? 'No brand' }} · {{ $offer->seller_name ?? 'No seller' }} · {{ $offer->seats_available !== null ? $offer->seats_available.' seats left' : 'Seats unknown' }} · {{ $offer->is_active ? 'Active' : 'Inactive' }}</div>

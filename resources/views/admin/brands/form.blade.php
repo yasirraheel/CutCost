@@ -68,7 +68,14 @@
     </div>
     <div class="col-12 form-group">
         <label for="icon_svg">Icon SVG</label>
-        <textarea class="input-sharesub" id="icon_svg" name="icon_svg" rows="3">{{ old('icon_svg', $brand->icon_svg) }}</textarea>
+        @php
+            $textareaRows = 0;
+            foreach (preg_split('/\r\n|\r|\n/', (string) (old('icon_svg', $brand->icon_svg))) ?: [] as $textareaLine) {
+                $textareaRows += max(1, (int) ceil(mb_strlen($textareaLine) / 80));
+            }
+            $textareaRows = min(24, max(6, $textareaRows + 1));
+        @endphp
+        <textarea style="height: auto;" class="input-sharesub" id="icon_svg" name="icon_svg" rows="{{ $textareaRows }}">{{ old('icon_svg', $brand->icon_svg) }}</textarea>
     </div>
     <div class="col-12 form-group">
         <label for="logo">Logo image <span class="text-muted">(jpg, png, webp or svg, max 2 MB)</span></label>

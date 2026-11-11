@@ -53,6 +53,6 @@ class RichTextEditorTest extends TestCase
         $response->assertSee('id="body_html"', false);
         $response->assertSee('rich-text-editor', false);
         $response->assertSee('MutationObserver', false);
-        $response->assertSee('<textarea class="input-sharesub" id="excerpt"', false);
+        $response->assertSee('<textarea style="height: auto;" class="input-sharesub" id="excerpt"', false);
     }
 }

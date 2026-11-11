@@ -15,9 +15,9 @@
     <ul class="dashboard-profile-steps mt-3">
         @forelse ($testimonials as $testimonial)
             <li class="row align-items-center">
-                <div class="col-1 text-right">💬</div>
+                <div class="col-1 text-right">@if ($testimonial->avatar_path)<img src="{{ str_starts_with($testimonial->avatar_path, '/') || str_starts_with($testimonial->avatar_path, 'http') ? asset($testimonial->avatar_path) : asset('storage/'.$testimonial->avatar_path) }}" alt="" style="max-height: 40px; max-width: 60px; margin-right: 8px; vertical-align: middle;">@else💬@endif</div>
                 <div class="col">
-                    @if ($testimonial->avatar_path)<img src="{{ str_starts_with($testimonial->avatar_path, '/') || str_starts_with($testimonial->avatar_path, 'http') ? asset($testimonial->avatar_path) : asset('storage/'.$testimonial->avatar_path) }}" alt="" style="max-height: 40px; max-width: 60px; margin-right: 8px; vertical-align: middle;">@endif<strong>{{ $testimonial->author_name }}</strong>
+                    <strong>{{ $testimonial->author_name }}</strong>
                     <div class="text-muted text-sm">{{ $testimonial->role_text }} · {{ $testimonial->rating ? $testimonial->rating.'/5' : 'No rating' }} · {{ $testimonial->is_active ? 'Active' : 'Inactive' }}</div>
                     <div class="text-muted text-sm">{{ Str::limit($testimonial->quote, 80) }}</div>
                 </div>

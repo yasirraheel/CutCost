@@ -15,9 +15,9 @@
     <ul class="dashboard-profile-steps mt-3">
         @forelse ($brands as $brand)
             <li class="row align-items-center">
-                <div class="col-1 text-right">🏷️</div>
+                <div class="col-1 text-right">@include('admin.partials.brand-icon', ['brand' => $brand, 'fallback' => '🏷️'])</div>
                 <div class="col">
-                    @if ($brand->logo_path)<img src="{{ str_starts_with($brand->logo_path, '/') || str_starts_with($brand->logo_path, 'http') ? asset($brand->logo_path) : asset('storage/'.$brand->logo_path) }}" alt="" style="max-height: 40px; max-width: 60px; margin-right: 8px; vertical-align: middle;">@endif<strong>{{ $brand->name }}</strong>
+                    <strong>{{ $brand->name }}</strong>
                     <div class="text-muted text-sm">{{ $brand->currency_symbol }}{{ number_format($brand->price, 2) }} · {{ $brand->slug }} · {{ $brand->category?->name ?? 'No category' }} · {{ $brand->is_active ? 'Active' : 'Inactive' }}{{ $brand->is_featured ? ' · Featured' : '' }}</div>
                 </div>
                 <div class="col-12 col-md-4 offset-1 offset-md-0 text-md-right">

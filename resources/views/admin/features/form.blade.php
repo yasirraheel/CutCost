@@ -5,7 +5,14 @@
     </div>
     <div class="col-12 form-group">
         <label for="text">Text</label>
-        <textarea class="input-sharesub" id="text" name="text" rows="3">{{ old('text', $feature->text) }}</textarea>
+        @php
+            $textareaRows = 0;
+            foreach (preg_split('/\r\n|\r|\n/', (string) (old('text', $feature->text))) ?: [] as $textareaLine) {
+                $textareaRows += max(1, (int) ceil(mb_strlen($textareaLine) / 80));
+            }
+            $textareaRows = min(24, max(6, $textareaRows + 1));
+        @endphp
+        <textarea style="height: auto;" class="input-sharesub" id="text" name="text" rows="{{ $textareaRows }}">{{ old('text', $feature->text) }}</textarea>
     </div>
     <div class="col-12 form-group">
         <label for="icon_path">Icon path <span class="text-muted">(existing /img asset, for example /img/dashboard/features/service-legal.svg)</span></label>
@@ -25,7 +32,14 @@
     </div>
     <div class="col-12 form-group">
         <label for="icon_svg">Icon SVG <span class="text-muted">(inline SVG alternative)</span></label>
-        <textarea class="input-sharesub" id="icon_svg" name="icon_svg" rows="3">{{ old('icon_svg', $feature->icon_svg) }}</textarea>
+        @php
+            $textareaRows = 0;
+            foreach (preg_split('/\r\n|\r|\n/', (string) (old('icon_svg', $feature->icon_svg))) ?: [] as $textareaLine) {
+                $textareaRows += max(1, (int) ceil(mb_strlen($textareaLine) / 80));
+            }
+            $textareaRows = min(24, max(6, $textareaRows + 1));
+        @endphp
+        <textarea style="height: auto;" class="input-sharesub" id="icon_svg" name="icon_svg" rows="{{ $textareaRows }}">{{ old('icon_svg', $feature->icon_svg) }}</textarea>
     </div>
     <div class="col-12 col-md-6 form-group">
         <label for="sort_order">Sort order</label>

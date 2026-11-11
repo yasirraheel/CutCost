@@ -21,11 +21,25 @@
     </div>
     <div class="col-12 form-group">
         <label for="excerpt">Excerpt</label>
-        <textarea class="input-sharesub" id="excerpt" name="excerpt" rows="2">{{ old('excerpt', $page->excerpt) }}</textarea>
+        @php
+            $textareaRows = 0;
+            foreach (preg_split('/\r\n|\r|\n/', (string) (old('excerpt', $page->excerpt))) ?: [] as $textareaLine) {
+                $textareaRows += max(1, (int) ceil(mb_strlen($textareaLine) / 80));
+            }
+            $textareaRows = min(24, max(6, $textareaRows + 1));
+        @endphp
+        <textarea style="height: auto;" class="input-sharesub" id="excerpt" name="excerpt" rows="{{ $textareaRows }}">{{ old('excerpt', $page->excerpt) }}</textarea>
     </div>
     <div class="col-12 form-group">
         <label for="body_html">Body HTML</label>
-        <textarea class="input-sharesub rich-text-editor" id="body_html" name="body_html" rows="12" required>{{ old('body_html', $page->body_html) }}</textarea>
+        @php
+            $textareaRows = 0;
+            foreach (preg_split('/\r\n|\r|\n/', (string) (old('body_html', $page->body_html))) ?: [] as $textareaLine) {
+                $textareaRows += max(1, (int) ceil(mb_strlen($textareaLine) / 80));
+            }
+            $textareaRows = min(24, max(12, $textareaRows + 1));
+        @endphp
+        <textarea style="height: auto;" class="input-sharesub rich-text-editor" id="body_html" name="body_html" rows="{{ $textareaRows }}" required>{{ old('body_html', $page->body_html) }}</textarea>
     </div>
     <div class="col-12 col-md-6 form-group">
         <label for="sort_order">Sort order</label>

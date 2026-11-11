@@ -5,11 +5,25 @@
     </div>
     <div class="col-12 form-group">
         <label for="text">Text</label>
-        <textarea class="input-sharesub" id="text" name="text" rows="3" required>{{ old('text', $item->text) }}</textarea>
+        @php
+            $textareaRows = 0;
+            foreach (preg_split('/\r\n|\r|\n/', (string) (old('text', $item->text))) ?: [] as $textareaLine) {
+                $textareaRows += max(1, (int) ceil(mb_strlen($textareaLine) / 80));
+            }
+            $textareaRows = min(24, max(6, $textareaRows + 1));
+        @endphp
+        <textarea style="height: auto;" class="input-sharesub" id="text" name="text" rows="{{ $textareaRows }}" required>{{ old('text', $item->text) }}</textarea>
     </div>
     <div class="col-12 form-group">
         <label for="icon">Icon <span class="text-muted">(inline SVG, leave empty for the default checkmark)</span></label>
-        <textarea class="input-sharesub" id="icon" name="icon" rows="3">{{ old('icon', $item->icon) }}</textarea>
+        @php
+            $textareaRows = 0;
+            foreach (preg_split('/\r\n|\r|\n/', (string) (old('icon', $item->icon))) ?: [] as $textareaLine) {
+                $textareaRows += max(1, (int) ceil(mb_strlen($textareaLine) / 80));
+            }
+            $textareaRows = min(24, max(6, $textareaRows + 1));
+        @endphp
+        <textarea style="height: auto;" class="input-sharesub" id="icon" name="icon" rows="{{ $textareaRows }}">{{ old('icon', $item->icon) }}</textarea>
     </div>
     <div class="col-12 col-md-6 form-group">
         <label for="sort_order">Sort order</label>

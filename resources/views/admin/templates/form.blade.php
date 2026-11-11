@@ -96,11 +96,25 @@
     </div>
     <div class="col-12 form-group">
         <label for="description">Description</label>
-        <textarea class="input-sharesub" id="description" name="description" rows="3">{{ old('description', $template->description) }}</textarea>
+        @php
+            $textareaRows = 0;
+            foreach (preg_split('/\r\n|\r|\n/', (string) (old('description', $template->description))) ?: [] as $textareaLine) {
+                $textareaRows += max(1, (int) ceil(mb_strlen($textareaLine) / 80));
+            }
+            $textareaRows = min(24, max(6, $textareaRows + 1));
+        @endphp
+        <textarea style="height: auto;" class="input-sharesub" id="description" name="description" rows="{{ $textareaRows }}">{{ old('description', $template->description) }}</textarea>
     </div>
     <div class="col-12 form-group">
         <label for="description_seo">Description SEO</label>
-        <textarea class="input-sharesub" id="description_seo" name="description_seo" rows="3">{{ old('description_seo', $template->description_seo) }}</textarea>
+        @php
+            $textareaRows = 0;
+            foreach (preg_split('/\r\n|\r|\n/', (string) (old('description_seo', $template->description_seo))) ?: [] as $textareaLine) {
+                $textareaRows += max(1, (int) ceil(mb_strlen($textareaLine) / 80));
+            }
+            $textareaRows = min(24, max(6, $textareaRows + 1));
+        @endphp
+        <textarea style="height: auto;" class="input-sharesub" id="description_seo" name="description_seo" rows="{{ $textareaRows }}">{{ old('description_seo', $template->description_seo) }}</textarea>
     </div>
     <div class="col-12 form-group">
         <label for="title_seo">Title SEO</label>
@@ -108,11 +122,25 @@
     </div>
     <div class="col-12 form-group">
         <label for="helper_create">Helper text for sharing</label>
-        <textarea class="input-sharesub" id="helper_create" name="helper_create" rows="3">{{ old('helper_create', $template->helper_create) }}</textarea>
+        @php
+            $textareaRows = 0;
+            foreach (preg_split('/\r\n|\r|\n/', (string) (old('helper_create', $template->helper_create))) ?: [] as $textareaLine) {
+                $textareaRows += max(1, (int) ceil(mb_strlen($textareaLine) / 80));
+            }
+            $textareaRows = min(24, max(6, $textareaRows + 1));
+        @endphp
+        <textarea style="height: auto;" class="input-sharesub" id="helper_create" name="helper_create" rows="{{ $textareaRows }}">{{ old('helper_create', $template->helper_create) }}</textarea>
     </div>
     <div class="col-12 form-group">
         <label for="helper_join">Helper text for joining</label>
-        <textarea class="input-sharesub" id="helper_join" name="helper_join" rows="3">{{ old('helper_join', $template->helper_join) }}</textarea>
+        @php
+            $textareaRows = 0;
+            foreach (preg_split('/\r\n|\r|\n/', (string) (old('helper_join', $template->helper_join))) ?: [] as $textareaLine) {
+                $textareaRows += max(1, (int) ceil(mb_strlen($textareaLine) / 80));
+            }
+            $textareaRows = min(24, max(6, $textareaRows + 1));
+        @endphp
+        <textarea style="height: auto;" class="input-sharesub" id="helper_join" name="helper_join" rows="{{ $textareaRows }}">{{ old('helper_join', $template->helper_join) }}</textarea>
     </div>
     <div class="col-12 col-md-6 form-group">
         <div class="filter-toggle justify-content-start">

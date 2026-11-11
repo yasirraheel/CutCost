@@ -14,7 +14,14 @@
                 <div class="col-12 form-group">
                     <label for="settings-{{ $key }}">{{ $meta['label'] }} <span class="text-muted">({{ $key }})</span></label>
                     @if ($meta['type'] === 'textarea')
-                        <textarea class="input-sharesub{{ str_ends_with($key, '_html') ? ' rich-text-editor' : '' }}" id="settings-{{ $key }}" name="settings[{{ $key }}]" rows="3">{{ old('settings.'.$key, $settings[$key] ?? '') }}</textarea>
+                        @php
+                            $textareaRows = 0;
+                            foreach (preg_split('/\r\n|\r|\n/', (string) (old('settings.'.$key, $settings[$key] ?? ''))) ?: [] as $textareaLine) {
+                                $textareaRows += max(1, (int) ceil(mb_strlen($textareaLine) / 80));
+                            }
+                            $textareaRows = min(24, max(6, $textareaRows + 1));
+                        @endphp
+                        <textarea style="height: auto;" class="input-sharesub{{ str_ends_with($key, '_html') ? ' rich-text-editor' : '' }}" id="settings-{{ $key }}" name="settings[{{ $key }}]" rows="{{ $textareaRows }}">{{ old('settings.'.$key, $settings[$key] ?? '') }}</textarea>
                     @elseif ($meta['type'] === 'currency')
                         @php $currentCurrency = old('settings.'.$key, $settings[$key] ?? ''); @endphp
                         <select class="input-sharesub" id="settings-{{ $key }}" name="settings[{{ $key }}]">
